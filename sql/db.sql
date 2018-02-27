@@ -9,18 +9,9 @@ CREATE TABLE IF NOT EXISTS `mc_account` (
   `phone_ac` VARCHAR(45) DEFAULT NULL,
   `company_ac` VARCHAR(50) DEFAULT NULL,
   `vat_ac` VARCHAR(50) DEFAULT NULL,
-  `website` VARCHAR(150) DEFAULT NULL,
-  `facebook` VARCHAR(200) DEFAULT NULL,
-  `instagram` VARCHAR(200) DEFAULT NULL,
-  `pinterest` VARCHAR(200) DEFAULT NULL,
-  `twitter` VARCHAR(200) DEFAULT NULL,
-  `google` VARCHAR(200) DEFAULT NULL,
-  `linkedin` VARCHAR(200) DEFAULT NULL,
-  `viadeo` VARCHAR(200) DEFAULT NULL,
-  `github` VARCHAR(200) DEFAULT NULL,
-  `soundcloud` VARCHAR(200) DEFAULT NULL,
   `newsletter_ac` SMALLINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `active_ac` SMALLINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `change_pwd` VARCHAR(32) DEFAULT NULL,
   `date_create` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_account`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
@@ -38,6 +29,26 @@ CREATE TABLE IF NOT EXISTS `mc_account_address` (
 
 ALTER TABLE `mc_account_address`
   ADD CONSTRAINT `mc_account_address_ibfk_2` FOREIGN KEY (`id_account`) REFERENCES `mc_account` (`id_account`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE TABLE IF NOT EXISTS `mc_account_social` (
+  `id_social` INT(7) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id_account` INT(7) UNSIGNED NOT NULL,
+  `website` varchar(150) DEFAULT NULL,
+  `facebook` varchar(200) DEFAULT NULL,
+  `instagram` varchar(200) DEFAULT NULL,
+  `pinterest` varchar(200) DEFAULT NULL,
+  `twitter` varchar(200) DEFAULT NULL,
+  `google` varchar(200) DEFAULT NULL,
+  `linkedin` varchar(200) DEFAULT NULL,
+  `viadeo` varchar(200) DEFAULT NULL,
+  `github` varchar(200) DEFAULT NULL,
+  `soundcloud` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id_social`),
+  KEY (`id_account`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+ALTER TABLE `mc_account_social`
+  ADD CONSTRAINT `mc_account_social_ibfk_2` FOREIGN KEY (`id_account`) REFERENCES `mc_account` (`id_account`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 CREATE TABLE IF NOT EXISTS `mc_account_session` (
   `id_session` VARCHAR(150) NOT NULL,

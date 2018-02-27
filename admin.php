@@ -75,11 +75,13 @@ class plugins_account_admin extends plugins_account_db {
 	/**
 	 * Les variables plugin
 	 * @var array $account
+	 * @var array $address
 	 * @var array $config
 	 * @var integer $id
 	 */
 	public
 		$account = array(),
+		$address = array(),
 		$config = array(),
 		$id = 0;
 
@@ -91,7 +93,7 @@ class plugins_account_admin extends plugins_account_db {
 	 * @var $cartpayModule
 	 * @var $country
      */
-    //protected $module, $activeMods, $cartpayModule, $country;
+    //protected $module, $activeMods, $cartpayModule;
 
 	/**
 	 * plugins_account_admin constructor.
@@ -114,7 +116,7 @@ class plugins_account_admin extends plugins_account_db {
 			$this->controller = $formClean->simpleClean($_GET['controller']);
 		}
 		if (http_request::isGet('edit')) {
-			$this->edit = $formClean->numeric($_GET['edit']);
+			$this->edit = (int)$formClean->numeric($_GET['edit']);
 		}
 		if (http_request::isGet('action')) {
 			$this->action = $formClean->simpleClean($_GET['action']);
@@ -130,32 +132,23 @@ class plugins_account_admin extends plugins_account_db {
 		}
 		if(class_exists('plugins_profil_module')) {
 			$this->module = new plugins_profil_module();
-		}
-        //$this->translation = new backend_controller_template();
-        $this->country = new backend_controller_country();
-
-        //GET
-        if(http_request::isGet('page')) {
-            // si numéric
-            if(is_numeric($_GET['page'])){
-                $this->getpage = intval($_GET['page']);
-            }else{
-                // Sinon retourne la première page
-                $this->getpage = 1;
-            }
-        }else {
-            $this->getpage = 1;
-        }*/
+		}*/
 
         // --- ADD or EDIT
 		if (http_request::isPost('account')) {
-			$this->account = $formClean->arrayClean($_POST['account']);
+			$this->account = (array)$formClean->arrayClean($_POST['account']);
 		}
-		if (http_request::isPost('config')) {
-			$this->config = $formClean->arrayClean($_POST['config']);
+		elseif (http_request::isGet('account')) {
+			$this->account = (array)$formClean->arrayClean($_GET['account']);
+		}
+		if (http_request::isPost('address')) {
+			$this->address = (array)$formClean->arrayClean($_POST['address']);
+		}
+		if (http_request::isPost('acConfig')) {
+			$this->config = (array)$formClean->arrayClean($_POST['acConfig']);
 		}
 		if (http_request::isPost('id')) {
-			$this->id = $formClean->simpleClean($_POST['id']);
+			$this->id = (int)$formClean->simpleClean($_POST['id']);
 		}
     }
 
@@ -203,8 +196,12 @@ class plugins_account_admin extends plugins_account_db {
 	private function upd($config)
 	{
 		switch ($config['type']) {
-			case 'adv':
-			case 'advContent':
+			case 'accountActive':
+			case 'account':
+			case 'address':
+			case 'accountConfig':
+			case 'pwd':
+			case 'config':
 				parent::update(
 					array('type' => $config['type']),
 					$config['data']
@@ -220,12 +217,11 @@ class plugins_account_admin extends plugins_account_db {
 	private function del($config)
 	{
 		switch ($config['type']) {
-			case 'adv':
+			case 'account':
 				parent::delete(
 					array('type' => $config['type']),
 					$config['data']
 				);
-				$this->header->set_json_headers();
 				$this->message->json_post_response(true,'delete',array('id' => $this->id));
 				break;
 		}
@@ -245,7 +241,7 @@ class plugins_account_admin extends plugins_account_db {
 					if(is_array($this->account) && !empty($this->account)) {
 						if($this->account['passwd'] === $this->account['repeat_passwd']) {
 							$this->account['passcrypt_ac'] = password_hash($this->account['passwd'], PASSWORD_DEFAULT);
-							$this->account['keyuniqid_ac'] = filter_rsa::randUI();
+							$this->account['keyuniqid_ac'] = filter_rsa::uniqID();
 							$this->account['active_ac'] = isset($this->account['active_ac']) ? 1 : 0;
 							unset($this->account['passwd']);
 							unset($this->account['repeat_passwd']);
@@ -255,8 +251,6 @@ class plugins_account_admin extends plugins_account_db {
 									'data' => $this->account
 								)
 							);
-
-							$this->header->set_json_headers();
 							$this->message->json_post_response(true,'add_redirect');
 						}
 					}
@@ -267,36 +261,89 @@ class plugins_account_admin extends plugins_account_db {
 					}
 					break;
 				case 'edit':
+					$status = false;
+					$notify = 'error';
 					if(!empty($this->tabs)) {
 						switch ($this->tabs) {
-							case 'account': break;
-							case 'address': break;
-							case 'socials': break;
-						}
+							case 'account':
+								$this->account['id'] = $this->id;
+								$this->address['id'] = $this->id;
 
-						$this->header->set_json_headers();
-						$this->message->json_post_response(true,'update');
+								$this->upd(array(
+									'type' => 'account',
+									'data' => array_map(function($v) { return $v === '' ? null : $v; }, $this->account)
+								));
+								$this->upd(array(
+									'type' => 'address',
+									'data' => array_map(function($v) { return $v === '' ? null : $v; }, $this->address)
+								));
+								$status = true;
+								$notify = 'update';
+								break;
+							case 'accountConfig':
+								$upd = true;
+								$account = $this->getItems('account',$this->account['id'],'one',false);
+								if($this->account['email_ac'] !== $account['email_ac']) {
+									$invalidmail = $this->getItems('searchmail',array('email_ac' => $this->account['email_ac']),'one',false);
+
+									if($invalidmail) { $upd = false; }
+								}
+
+								if($upd) {
+									$this->account['active_ac'] = isset($this->account['active_ac']) ? 1 : 0;
+
+									$this->upd(array(
+										'type' => 'accountConfig',
+										'data' => $this->account
+									));
+
+									$status = true;
+									$notify = 'update';
+								}
+								break;
+							case 'pwd':
+								if($this->account['new_passwd'] === $this->account['repeat_passwd']) {
+									$this->upd(array(
+										'type' => 'pwd',
+										'data' => array(
+											'passcrypt_ac' => password_hash($this->account['new_passwd'], PASSWORD_DEFAULT),
+											'id' => $this->account['id']
+										)
+									));
+
+									$status = true;
+									$notify = 'update';
+								}
+
+								break;
+							case 'config':
+								$config = $this->getItems('config',$this->edit,'one',false);
+								$this->config['id'] = $config['id_config'];
+								$this->config['links'] = isset($this->config['links']) ? 1 : 0;
+								$this->config['cartpay'] = isset($this->config['cartpay']) ? 1 : 0;
+								//$this->config['address'] = isset($this->config['address']) ? 1 : 0;
+								$this->config['google_recaptcha'] = isset($this->config['google_recaptcha']) ? 1 : 0;
+								$this->config['recaptchaApiKey'] = $this->config['recaptchaApiKey'] === '' ? null : $this->config['recaptchaApiKey'];
+								$this->config['recaptchaSecret'] = $this->config['recaptchaSecret'] === '' ? null : $this->config['recaptchaSecret'];
+
+								$this->upd(array(
+									'type' => 'config',
+									'data' => $this->config
+								));
+
+								$status = true;
+								$notify = 'update';
+								break;
+						}
+						$this->message->json_post_response($status,$notify);
 					}
 					else {
 						$this->modelLanguage->getLanguage();
 
 						$this->getItems('account',$this->edit,'one');
-						$this->getItems('address',$this->edit,'one');
 
 						$country = new component_collections_country();
-						try {
-							$this->template->assign('countries',$country->getCountries());
-						} catch(Exception $e) {
-							$logger = new debug_logger(MP_LOG_DIR);
-							$logger->log('php', 'error', 'An error has occured : '.$e->getMessage(), debug_logger::LOG_MONTH);
-						}
-
-						/*try {
-							$this->template->assign('edit', true);
-						} catch(Exception $e) {
-							$logger = new debug_logger(MP_LOG_DIR);
-							$logger->log('php', 'error', 'An error has occured : '.$e->getMessage(), debug_logger::LOG_MONTH);
-						}*/
+						$this->template->assign('countries',$country->getCountries());
 
 						$this->template->display('edit.tpl');
 					}
@@ -305,7 +352,7 @@ class plugins_account_admin extends plugins_account_db {
 					if(isset($this->id) && !empty($this->id)) {
 						$this->del(
 							array(
-								'type' => 'adv',
+								'type' => 'account',
 								'data' => array(
 									'id' => $this->id
 								)
@@ -313,26 +360,84 @@ class plugins_account_admin extends plugins_account_db {
 						);
 					}
 					break;
-				case 'order':
-					if (isset($this->advantage) && is_array($this->advantage)) {
-						$this->order();
+				case 'active-selected':
+				case 'unactive-selected':
+					if(!empty($this->account)) {
+						$this->upd(
+							array(
+								'type' => 'accountActive',
+								'data' => array(
+									'active_ac' => ($this->action === 'active-selected'?1:0),
+									'id' => implode($this->account, ',')
+								)
+							)
+						);
 					}
+
+					$this->message->getNotify('update',array('method'=>'fetch','assignFetch'=>'message'));
+
+					$this->modelLanguage->getLanguage();
+					$langs = $this->modelLanguage->setLanguage();
+					$opts = array();
+					foreach ($langs as $id => $iso) {
+						$opts[] = array(
+							'v' => $id,
+							'name' => $iso
+						);
+					}
+					$this->getItems('accounts');
+					$assign = array(
+						'id_account',
+						'iso_lang' => array(
+							'title' => 'lang',
+							'class' => 'fixed-td-md',
+							'input' => array(
+								'type' => 'select',
+								'var' => false,
+								'values' => $opts
+							)
+						),
+						'email_ac',
+						'firstname_ac',
+						'lastname_ac',
+						'active_ac',
+						'date_create'
+					);
+					$this->data->getScheme(array('mc_account','mc_lang'),array('id_account','iso_lang','email_ac','firstname_ac','lastname_ac','active_ac','date_create'),$assign);
+					$this->template->display('index.tpl');
 					break;
 			}
 		}
 		else {
 			$this->modelLanguage->getLanguage();
-			//$defaultLanguage = $this->collectionLanguage->fetchData(array('context'=>'one','type'=>'default'));
+			$langs = $this->modelLanguage->setLanguage();
+			$opts = array();
+			foreach ($langs as $id => $iso) {
+				$opts[] = array(
+					'v' => $id,
+					'name' => $iso
+				);
+			}
 			$this->getItems('accounts');
+			$this->getItems('config',$this->edit,'one');
 			$assign = array(
 				'id_account',
+				'iso_lang' => array(
+					'title' => 'lang',
+					'class' => 'fixed-td-md',
+					'input' => array(
+						'type' => 'select',
+						'var' => false,
+						'values' => $opts
+					)
+				),
 				'email_ac',
 				'firstname_ac',
 				'lastname_ac',
-				'active_ac' => array('title' => 'active_ac', 'type' => 'bin', 'input' => null, 'class' => ''),
+				'active_ac',
 				'date_create'
 			);
-			$this->data->getScheme(array('mc_accounte','mc_account_info','mc_lang'),array('id_account','iso_lang','email_ac','firstname_ac','lastname_ac','active_ac','date_create'),$assign);
+			$this->data->getScheme(array('mc_account','mc_lang'),array('id_account','iso_lang','email_ac','firstname_ac','lastname_ac','active_ac','date_create'),$assign);
 			$this->template->display('index.tpl');
 		}
     }

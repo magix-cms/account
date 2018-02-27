@@ -29,22 +29,37 @@
                 </header>
                 <div class="panel-body panel-body-form">
                     <div class="mc-message-container clearfix">
-                        <div class="mc-message"></div>
+                        <div class="mc-message">{if $message}{$message}{/if}</div>
                     </div>
                     <div class="tab-content">
                         <div role="tabpanel" class="tab-pane active" id="general">
-                            {include file="section/form/table-form-2.tpl" idcolumn='id_account' data=$accounts activation=true sortable=false controller="account"}
+                            {include file="section/form/table-form-2.tpl" idcolumn='id_account' data=$accounts activation=true sortable=false controller="account" debug=false}
                         </div>
                         <div role="tabpanel" class="tab-pane" id="config">
-                            {include file="forms/config.tpl"}
+                            {include file="form/config.tpl"}
                         </div>
                     </div>
                 </div>
             </section>
         </div>
-        {include file="modal/delete.tpl" data_type='address' title={#modal_delete_title#|ucfirst} info_text=true delete_message={#delete_account_message#}}
+        {include file="modal/delete.tpl" data_type='address' title={#modal_delete_title#|ucfirst} info_text=true}
         {include file="modal/error.tpl"}
     {else}
         {include file="section/brick/viewperms.tpl"}
     {/if}
+{/block}
+
+{block name="foot" append}
+    {capture name="scriptForm"}/{baseadmin}/min/?f=plugins/account/js/admin.min.js{/capture}
+    {script src=$smarty.capture.scriptForm type="javascript"}
+    <script type="text/javascript">
+        $(function() {
+            if (typeof account == "undefined") {
+                console.log("account is not defined");
+            } else
+            {
+                account.run();
+            }
+        });
+    </script>
 {/block}

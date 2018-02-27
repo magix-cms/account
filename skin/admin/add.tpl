@@ -18,7 +18,7 @@
                     <div class="mc-message-container clearfix">
                         <div class="mc-message"></div>
                     </div>
-                    {include file="forms/add-account.tpl"}
+                    {include file="form/add-account.tpl"}
                 </div>
             </section>
         </div>
