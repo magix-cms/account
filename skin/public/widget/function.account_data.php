@@ -52,27 +52,15 @@
  * @param Smarty
  * @return string
  */
-function smarty_function_account_data($params, $template){
-    $session = new http_session();
-	$member = new plugins_account_public();
-
-	$modelTemplate = new frontend_model_template();
+function smarty_function_account_data($params, $smarty){
+	$modelTemplate = $smarty->tpl_vars['modelTemplate']->value instanceof frontend_model_template ? $smarty->tpl_vars['modelTemplate']->value : new frontend_model_template();
+	$member = new plugins_account_public($modelTemplate);
 	$modelTemplate->addConfigFile(
 		array(component_core_system::basePath().'/plugins/account/i18n/'),
 		array('public_local_'),
 		false
 	);
 	$modelTemplate->configLoad();
-
-    $session->start('mc_account');
-    $array_sess = array(
-        'id_account'   => $_SESSION['id_account'],
-        'keyuniqid_ac' => $_SESSION['keyuniqid_ac'],
-        'email_ac'     => $_SESSION['email_ac']
-    );
-    $session->run($array_sess);
-    //$session->debug();
-
-	$template->assign('hashurl',$member->hashUrl());
-	$template->assign('account',$member->accountData());
+	$smarty->assign('hashurl',$member->hashUrl());
+	$smarty->assign('account',$member->accountData());
 }

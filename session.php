@@ -1,78 +1,101 @@
 <?php
+class model_session extends plugins_account_db {
+	private $httpSession,$setting,$settings;
 
-/**
- * Abtsract class register
- * @author Aurelien
- *
- */
-abstract class sessionTools{
-    /**
-     * function register real IP
-     * @return string
-     */
-    function getIp(){
-        if (isset($_SERVER)) {
-            if (isset($_SERVER["HTTP_X_FORWARDED_FOR"])) {
-                $realip = $_SERVER["HTTP_X_FORWARDED_FOR"];
-            } elseif (isset($_SERVER["HTTP_CLIENT_IP"])) {
-                $realip = $_SERVER["HTTP_CLIENT_IP"];
-            } else {
-                $realip = $_SERVER["REMOTE_ADDR"];
-            }
-        }else{
-            if ( getenv( 'HTTP_X_FORWARDED_FOR' ) ) {
-                $realip = getenv( 'HTTP_X_FORWARDED_FOR' );
-            } elseif ( getenv( 'HTTP_CLIENT_IP' ) ) {
-                $realip = getenv( 'HTTP_CLIENT_IP' );
-            } else {
-                $realip = getenv( 'REMOTE_ADDR' );
-            }
-        }
-        return $realip;
-    }
-    /**
-     * function getBrowser
-     * @return browser
-     */
-    function getBrowser(){
-        $user_agent = getenv("HTTP_USER_AGENT");
-        if ((strpos($user_agent, "Nav") !== FALSE) || (strpos($user_agent, "Gold") !== FALSE) ||
-            (strpos($user_agent, "X11") !== FALSE) || (strpos($user_agent, "Mozilla") !== FALSE) ||
-            (strpos($user_agent, "Netscape") !== FALSE)
-            AND (!strpos($user_agent, "MSIE") !== FALSE)
-            AND (!strpos($user_agent, "Konqueror") !== FALSE)
-            AND (!strpos($user_agent, "Firefox") !== FALSE)
-            AND (!strpos($user_agent, "Safari") !== FALSE))
-            $browser = "Netscape";
-        elseif (strpos($user_agent, "Opera") !== FALSE)
-            $browser = "Opera";
-        elseif (strpos($user_agent, "MSIE") !== FALSE)
-            $browser = "MSIE";
-        elseif (strpos($user_agent, "Lynx") !== FALSE)
-            $browser = "Lynx";
-        elseif (strpos($user_agent, "WebTV") !== FALSE)
-            $browser = "WebTV";
-        elseif (strpos($user_agent, "Konqueror") !== FALSE)
-            $browser = "Konqueror";
-        elseif (strpos($user_agent, "Safari") !== FALSE)
-            $browser = "Safari";
-        elseif (strpos($user_agent, "Firefox") !== FALSE)
-            $browser = "Firefox";
-        elseif ((stripos($user_agent, "bot") !== FALSE) || (strpos($user_agent, "Google") !== FALSE) ||
-            (strpos($user_agent, "Slurp") !== FALSE) || (strpos($user_agent, "Scooter") !== FALSE) ||
-            (stripos($user_agent, "Spider") !== FALSE) || (stripos($user_agent, "Infoseek") !== FALSE))
-            $browser = "Bot";
-        else
-            $browser = "Autre";
-        return $browser;
-    }
+	/**
+	 * backend_model_session constructor.
+	 */
+	public function __construct($t = null)
+	{
+		$this->setting = new frontend_model_setting($t);
+		$ssl = $this->setting->getSetting('ssl');
+		$this->httpSession = new http_session($ssl['value']);
+	}
+
+	/**
+	 * clean old register 2 days
+	 * @access private
+	 * @return void
+	 * @param $data
+	 */
+	private function cleanOldSession($data) {
+		//On supprime les enregistrements de plus de deux jours
+		$date = new DateTime('NOW');
+		$date->modify('-1 day');
+		$limit = $date->format('Y-m-d H:i:s');
+		parent::delete(array('type'=>'lastSession'),array('limit'=>$limit,'id_account'=>$data['id_account']));
+	}
+
+	/**
+	 * Open session
+	 * @param $userid
+	 * @return true
+	 */
+	public function openSession($data){
+		parent::delete(
+			array(
+				'type' => 'currentSession'
+			),
+			array(
+				'id_account' => $data['id_account']
+			)
+		);
+		$this->cleanOldSession(array('id_account'=>$data['id_account']));
+		//On ajoute un nouvel identifiant de session dans la table
+		parent::insert(
+			array(
+				'type'=>'session'
+			),
+			array(
+				'id_session'  	  => $data['id_session'],
+				'id_account'      => $data['id_account'],
+				'expires' 		  => $data['expires'] ? $data['expires'] : null,
+				'ip_session'      => $this->httpSession->getIp(),
+				'browser_session' => $this->httpSession->getBrowser(),
+				'keyuniqid_ac' 	  => $data['keyuniqid_ac']
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * @param bool $connexion
+	 */
+	public function redirect($connexion=false){
+		if($connexion){
+			if (!headers_sent()) {
+				header('location: '.http_url::getUrl().'/admin/index.php?controller=dashboard');
+				exit;
+			}
+		}else{
+			if (!headers_sent()) {
+				header('location: '.http_url::getUrl().'/admin/index.php?controller=login');
+				exit;
+			}
+		}
+	}
+
+	/**
+	 * close session
+	 * @return void
+	 */
+	public function closeSession() {
+		parent::delete(array('type'=>'session'),array('id_session'=>session_id()));
+	}
+
+	/**
+	 * Compare la session avec une entrée session mysql
+	 * @return void
+	 */
+	public function compareSessionId(){
+		return parent::fetchData(
+			array(
+				'context' => 'one',
+				'type' => 'session'
+			)
+			,array(
+				'id_session' => session_id()
+			)
+		);
+	}
 }
-class sessionRegister extends sessionTools{
-    public function getIp(){
-        return parent::getIp();
-    }
-    public function getBrowser(){
-        return parent::getBrowser();
-    }
-}
-?>

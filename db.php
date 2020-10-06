@@ -188,11 +188,11 @@ class plugins_account_db
 
 		switch ($config['type']) {
 			case 'account':
-				$queries = array(
+			    $queries = array(
 					array('request' => 'INSERT INTO `mc_account` (`id_lang`, `email_ac`, `passcrypt_ac`, `keyuniqid_ac`, `firstname_ac`, `lastname_ac`, `active_ac`, `date_create`) VALUES (:id_lang, :email_ac, :passcrypt_ac, :keyuniqid_ac, :firstname_ac, :lastname_ac, :active_ac, NOW())', 'params' => $params),
-					array('request' => 'SET @account_id = LAST_INSERT_ID()', 'params' => array()),
-					array('request' => 'INSERT INTO `mc_account_address` (`id_account`) VALUE (@account_id)', 'params' => array()),
-					array('request' => 'INSERT INTO `mc_account_social` (`id_account`) VALUE (@account_id)', 'params' => array())
+					array('request' => 'SET @account_id = LAST_INSERT_ID()', 'params' => []),
+					array('request' => 'INSERT INTO `mc_account_address` (`id_account`) VALUE (@account_id)', 'params' => []),
+					array('request' => 'INSERT INTO `mc_account_social` (`id_account`) VALUE (@account_id)', 'params' => [])
 				);
 
 				try {
@@ -204,8 +204,8 @@ class plugins_account_db
 				}
 				break;
 			case 'session':
-				$sql = 'INSERT INTO `mc_account_session` (`id_session`,`id_account`,`keyuniqid_ac`,`ip_session`,`browser_session`)
-						VALUES (:id_session,:id_account,:keyuniqid_ac,:ip_session,:browser_session)';
+				$sql = 'INSERT INTO `mc_account_session` (`id_session`,`id_account`,`keyuniqid_ac`,`ip_session`,`browser_session`,`expires`)
+						VALUES (:id_session,:id_account,:keyuniqid_ac,:ip_session,:browser_session,:expires)';
 				break;
 		}
 
@@ -315,6 +315,10 @@ class plugins_account_db
 							`recaptchaSecret` = :recaptchaSecret
 						WHERE id_config = :id';
 				break;
+			case 'newSession':
+				$sql = 'INSERT INTO mc_account_session (id_session,id_account,ip_session,browser_session,keyuniqid_ac)
+							VALUE (:id_session,:id_account,:ip_session,:browser_session,:keyuniqid_ac)';
+				break;
 		}
 
 		if($sql === '') return 'Unknown request asked';
@@ -350,7 +354,7 @@ class plugins_account_db
 				break;
 			case 'lastSessions':
 				$sql = 'DELETE FROM `mc_account_session`
-						WHERE TO_DAYS(DATE_FORMAT(NOW(), "%Y%m%d")) - TO_DAYS(DATE_FORMAT(last_modified_session, "%Y%m%d")) > :limit';
+						WHERE TO_DAYS(DATE_FORMAT(NOW(), "%Y%m%d")) - TO_DAYS(DATE_FORMAT(last_modified_session, "%Y%m%d")) > :limit AND id_account = :id_account';
 				break;
 			case 'currentSession':
 				$sql = 'DELETE FROM `mc_account_session`

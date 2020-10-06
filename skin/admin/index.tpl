@@ -5,7 +5,7 @@
     {if {employee_access type="append" class_name=$cClass} eq 1}
         <div class="pull-right">
             <p class="text-right">
-                {#nbr_account#|ucfirst}: {$account|count}<a href="{$smarty.server.SCRIPT_NAME}?controller={$smarty.get.controller}&amp;action=add" title="{#add_account#}" class="btn btn-link">
+                {#nbr_account#|ucfirst}: {$accounts|count}<a href="{$smarty.server.SCRIPT_NAME}?controller={$smarty.get.controller}&amp;action=add" title="{#add_account#}" class="btn btn-link">
                     <span class="fa fa-plus"></span> {#add_account#|ucfirst}
                 </a>
             </p>

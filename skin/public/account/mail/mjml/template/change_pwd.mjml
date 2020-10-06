@@ -1,0 +1,8 @@
+<mj-section>
+    <mj-column width="100%">
+        <mj-text font-weight="bold" font-size="16px" padding-bottom="0">
+            {#change_pwd_text#|sprintf:$companyData.name}
+        </mj-text>
+        <mj-divider/>
+    </mj-column>
+</mj-section>

@@ -1,0 +1,17 @@
+<mj-section>
+    <mj-column width="100%">
+        <mj-text font-weight="bold" font-size="16px" padding-bottom="0">
+            {#signup_h1_mail#}
+        </mj-text>
+        <mj-divider/>
+        <mj-text mj-class="lightext" font-size="16px">
+            {#newpwd_new#}&nbsp;{$data.newpwd}
+        </mj-text>
+    </mj-column>
+</mj-section>
+<mj-column width="100%">
+    <mj-button href="{geturl}/{getlang}/account/login/" background-color="{$main_color}" color="white">
+        {#login_title_mail#}
+    </mj-button>
+</mj-column>
+</mj-section>

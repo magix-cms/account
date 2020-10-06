@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/recaptcha/autoload.php';
 require_once('db.php');
+require_once('session.php');
 /*
  # -- BEGIN LICENSE BLOCK ----------------------------------
  #
@@ -53,11 +54,12 @@ class plugins_account_public extends plugins_account_db
 	/**
 	 * @var object
 	 */
-    protected $template,
+	protected $template,
 		$data,
 		$header,
 		$message,
 		$lang,
+		$httpSession,
 		$session,
 		$settings,
 		$module,
@@ -65,12 +67,13 @@ class plugins_account_public extends plugins_account_db
 		$about,
 		$sanitize,
 		$modelDomain,
-		$mail;
+		$mail,
+		$mods;
 
 	/**
 	 * @var array $config
 	 */
-    private $config;
+	private $config;
 
 	/**
 	 * Session var
@@ -101,131 +104,67 @@ class plugins_account_public extends plugins_account_db
 	 * @var array $address
 	 * @var string $gRecaptchaResponse
 	 */
-    public $v_email,
+	public $v_email,
 		$account,
+		$stay_logged,
 		$address,
 		$socials,
 		$gRecaptchaResponse;
 
-    // public $name_rcp,$img_rcp,$level_rcp,$preparation_rcp,$number_rcp,$budget_rcp,$content_rcp,$statut_rcp;
-    // public $name_ing;
-    // public $period_sub,$amount_sub;
-
-    public function __construct(){
-        $this->template = new frontend_model_template();
-		$this->session = new http_session();
-		$this->data = new frontend_model_data($this);
+	/**
+	 * plugins_account_public constructor.
+	 * @param frontend_model_template $t
+	 */
+	public function __construct($t = null){
+		$this->template = $t instanceof frontend_model_template ? $t : new frontend_model_template;
+		$this->settings = new frontend_model_setting($this->template);
+		$ssl = $this->settings->getSetting('ssl');
+		$this->data = new frontend_model_data($this,$this->template);
 		$this->header = new http_header();
 		$this->message = new component_core_message($this->template);
-		$this->lang = $this->template->currentLanguage();
+		$this->lang = $this->template->lang;
 		$this->sanitize = new filter_sanitize();
-		$this->mail = new mail_swift('mail');
+		//$this->mail = new mail_swift('mail');
+		$this->mail = new frontend_model_mail($this->template,'account','smtp',[
+			'setHost'		=> 'web-solution-way.com',
+			'setPort'		=> 25,
+			'setEncryption'	=> '',
+			'setUsername'	=> 'server@web-solution-way.com',
+			'setPassword'	=> 'Wsw123/*'
+		]);
 		$this->modelDomain = new frontend_model_domain($this->template);
-		$this->settings = new frontend_model_setting();
-
-		$this->session->start('mc_account');
-		$this->session->token('token_ac');
-
-		/*if(class_exists('plugins_profil_module')) {
-			$this->module = new plugins_profil_module();
-		}*/
-
+		$this->module = new frontend_model_module($this->template);
+		$this->mods = $this->module->load_module('account');
 		$formClean = new form_inputEscape();
 
-		// --- Session
-		if(http_request::isSession('email_ac')){
-			$this->email_session = $formClean->simpleClean($_SESSION['email_ac']);
-		}
-		if(http_request::isSession('keyuniqid_ac')){
-			$this->keyuniqid_session = $formClean->simpleClean($_SESSION['keyuniqid_ac']);
-		}
-		if(http_request::isSession('id_account')){
-			$this->id_account_session = (int)$formClean->simpleClean($_SESSION['id_account']);
-		}
-
 		// --- Get
-		if (http_request::isGet('action')) {
-			$this->action = $formClean->simpleClean($_GET['action']);
-		}
-		if (http_request::isGet('hash')) {
-			$this->hash = $formClean->simpleClean($_GET['hash']);
-		}
-		if (http_request::isGet('tab')) {
-			$this->tab = $formClean->simpleClean($_GET['tab']);
-		}
+		if (http_request::isGet('action')) $this->action = $formClean->simpleClean($_GET['action']);
+		if (http_request::isGet('hash')) $this->hash = $formClean->simpleClean($_GET['hash']);
+		if (http_request::isGet('tab')) $this->tab = $formClean->simpleClean($_GET['tab']);
 
-		if (http_request::isGet('v_email')) {
-			$this->v_email = $formClean->simpleClean($_GET['v_email']);
-		}
+		if (http_request::isGet('v_email')) $this->v_email = $formClean->simpleClean($_GET['v_email']);
 
 		// --- Post
-		if (http_request::isPost('account')) {
-			$this->account = (array)$formClean->arrayClean($_POST['account']);
-		}
-		if (http_request::isPost('address')) {
-			$this->address = (array)$formClean->arrayClean($_POST['address']);
-		}
-		if (http_request::isPost('socials')) {
-			$this->socials = (array)$formClean->arrayClean($_POST['socials']);
-		}
+		if (http_request::isPost('account')) $this->account = (array)$formClean->arrayClean($_POST['account']);
+		if (http_request::isPost('address')) $this->address = (array)$formClean->arrayClean($_POST['address']);
+		if (http_request::isPost('socials')) $this->socials = (array)$formClean->arrayClean($_POST['socials']);
 		// - Google reCaptcha
-		if(http_request::isPost('g-recaptcha-response')){
-			$this->gRecaptchaResponse = $formClean->simpleClean($_POST['g-recaptcha-response']);
-		}
+		if(http_request::isPost('g-recaptcha-response'))$this->gRecaptchaResponse = $formClean->simpleClean($_POST['g-recaptcha-response']);
 
-        // --- Lost password
-		if (http_request::isGet('key')) {
-			$this->key = $formClean->simpleClean($_GET['key']);
-		}
-        /*if(magixcjquery_filter_request::isGet('lostpassword')){
-            $this->lostpassword = magixcjquery_form_helpersforms::inputClean($_GET['lostpassword']);
-        }*/
+		// --- Lost password
+		if (http_request::isGet('key')) $this->key = $formClean->simpleClean($_GET['key']);
 
-        // Recipes
-        /*if(magixcjquery_filter_request::isGet('json')){
-            $this->json = magixcjquery_form_helpersforms::inputClean($_GET['json']);
-        }
-        if(magixcjquery_filter_request::isPost('name_rcp')){
-            $this->name_rcp = magixcjquery_form_helpersforms::inputClean($_POST['name_rcp']);
-        }
-        if(isset($_FILES['img_rcp']["name"])){
-            $this->img_rcp = magixcjquery_url_clean::rplMagixString($_FILES['img_rcp']["name"]);
-        }
-        if(magixcjquery_filter_request::isPost('preparation_rcp')){
-            $this->preparation_rcp = magixcjquery_form_helpersforms::inputClean($_POST['preparation_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('number_rcp')){
-            $this->number_rcp = magixcjquery_form_helpersforms::inputClean($_POST['number_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('budget_rcp')){
-            $this->budget_rcp = magixcjquery_form_helpersforms::inputClean($_POST['budget_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('preparation_rcp')){
-            $this->preparation_rcp = magixcjquery_form_helpersforms::inputClean($_POST['preparation_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('level_rcp')){
-            $this->level_rcp = magixcjquery_form_helpersforms::inputClean($_POST['level_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('content_rcp')){
-            $this->content_rcp = magixcjquery_form_helpersforms::inputClean($_POST['content_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('statut_rcp')){
-            $this->statut_rcp = magixcjquery_form_helpersforms::inputClean($_POST['statut_rcp']);
-        }
-        if(magixcjquery_filter_request::isPost('name_ing')){
-            $this->name_ing = magixcjquery_form_helpersforms::inputClean($_POST['name_ing']);
-        }
-        if(isset($_FILES['img_rcp']["name"])){
-            $this->img_rcp = magixcjquery_url_clean::rplMagixString($_FILES['img_rcp']["name"]);
-        }
-        //PRO
-        if(magixcjquery_filter_request::isPost('period_sub')){
-            $this->period_sub = magixcjquery_form_helpersforms::inputClean($_POST['period_sub']);
-        }
-        if(magixcjquery_filter_request::isPost('amount_sub')){
-            $this->amount_sub = magixcjquery_form_helpersforms::inputClean($_POST['amount_sub']);
-        }*/
-    }
+		$this->httpSession = new http_session($ssl['value']);
+		$this->session = new model_session($this->template);
+
+		$this->securePage();
+
+		// --- Session
+		if(http_request::isSession('email_ac')) $this->email_session = $formClean->simpleClean($_SESSION['email_ac']);
+		if(http_request::isSession('keyuniqid_ac')) $this->keyuniqid_session = $formClean->simpleClean($_SESSION['keyuniqid_ac']);
+		if(http_request::isSession('id_account')) $this->id_account_session = (int)$formClean->simpleClean($_SESSION['id_account']);
+		if(http_request::isPost('stay_logged')) $this->stay_logged = true;
+	}
 
 	/**
 	 * Assign data to the defined variable or return the data
@@ -246,96 +185,27 @@ class plugins_account_public extends plugins_account_db
 	{
 		$this->template->configLoad();
 		return $this->template->fetch('forms/order.tpl','profil');
-    }
-
-    // --- Session
-    /**
-     * clean old register 2 days
-     * @access private
-     * @return void
-     */
-    private function dbClean() {
-        //On supprime les enregistrements de plus de deux jours
-        $date = new DateTime('NOW');
-        $date->modify('-1 day');
-        $limit = $date->format('Y-m-d H:i:s');
-        $this->del(array(
-        	'type' => 'lastSessions',
-			'data' => array(
-				'limit' => $limit
-			)
-		));
-    }
-
-	/**
-	 * close session
-	 * @return void
-	 */
-	private function closeSession() {
-		$this->del(array(
-			'type' => 'session',
-			'data' => array(
-				'id_session' => session_id()
-			)
-		));
 	}
 
-    /**
-     * Open session
-     * @param $session_id
-     * @param $id_account
-     * @param $keyuniqid
-     * @internal param $userid
-     * @return true
-     */
-    private function openSession($session_id, $id_account, $keyuniqid) {
-        $this->del(array(
-        	'type' => 'currentSession',
-			'data' => array(
-				'id_account' => $id_account
-			)
-		));
-        $this->dbClean();
-		$this->add(array(
-			'type' => 'session',
-			'data' => array(
-				'id_session' => $session_id,
-				'id_account' => $id_account,
-				'keyuniqid_ac' => $keyuniqid,
-				'ip_session' => $this->session->ip(),
-				'browser_session' => $this->session->browser()
-			)
-		));
-
-		return true;
-    }
-
+	// --- Session
 	/**
-	 * @return mixed
+	 * Réécriture des url pour la connexion des membres
+	 * @param $lang
+	 * @param array $options
+	 * options = edit : root, config, ask, immo, subscription, capaigns, statistics
+	 * options = level : login, newlogin, logout
+	 * @return string
+	 * @example
+	 * Classic URL
+	 * $options = array('level'=>'login');
+	 * EDIT URL
+	 * $options = array('hashuri'=>'fgdg4d564gdfg456dg5d4fgd56','edit'=>'config');
+	 * plugins_member_public::seoURLProfil('fr',$options)
 	 */
-    private function compareSessionId() {
-        return $this->getItems('session',array('id_session' => session_id()),'one',false);
-    }
-
-    /**
-     * Réécriture des url pour la connexion des membres
-     * @static
-     * @param $lang
-     * @param array $options
-     * options = edit : root, config, ask, immo, subscription, capaigns, statistics
-     * options = level : login, newlogin, logout
-     * @return string
-     * @example
-     * Classic URL
-     * $options = array('level'=>'login');
-     * EDIT URL
-     * $options = array('hashuri'=>'fgdg4d564gdfg456dg5d4fgd56','edit'=>'config');
-     * plugins_member_public::seoURLProfil('fr',$options)
-     */
-    public static function seoURLProfil($lang,array $options) {
+	public function seoURLProfil($lang,array $options) {
 		try {
 			if(is_array($options)){
-				$baseurl = '/'.$lang.'/account/';
+				$baseurl = http_url::getUrl().'/'.$lang.($this->template->is_amp() ? '/amp/':'/').'account/';
 				if(array_key_exists('hashuri',$options)) {
 					if($options['hashuri'] != null) {
 						$basedit = $baseurl.$options['hashuri'].'/';
@@ -386,29 +256,71 @@ class plugins_account_public extends plugins_account_db
 			$logger = new debug_logger(MP_LOG_DIR);
 			$logger->log('php', 'error', 'An error has occured : '.$e->getMessage(), debug_logger::LOG_MONTH);
 		}
-    }
+	}
 
 	/**
 	 * Sécurise l'espace membre
 	 * @param bool $debug
 	 */
-    public function securePage($debug = false){
-        $array_sess = array(
-			'id_account'   =>  $_SESSION['id_account'],
-			'keyuniqid_ac' =>  $_SESSION['keyuniqid_ac'],
-			'email_ac'     =>  $_SESSION['email_ac']
-		);
-		$this->session->run($array_sess);
+	public function securePage($debug = false){
+		$ssid = $this->httpSession->start('mc_account');
+		$this->httpSession->token('token_ac');
+		$cparams = session_get_cookie_params();
 
-		if($debug) $this->session->debug();
-    }
+		$array_sess = array(
+			'id_account'   => isset($_SESSION['id_account']) ? $_SESSION['id_account'] : null,
+			'keyuniqid_ac' => isset($_SESSION['keyuniqid_ac']) ? $_SESSION['keyuniqid_ac'] : null,
+			'email_ac'     => isset($_SESSION['email_ac']) ? $_SESSION['email_ac'] : null
+		);
+		$this->httpSession->run($array_sess);
+
+		if(isset($_SESSION['keyuniqid_ac']) && !empty($_SESSION['keyuniqid_ac'])) {
+			$hash = $_SESSION['keyuniqid_ac'].$ssid;
+			if(isset($_COOKIE[$hash])) {
+				$array_sess = array(
+					'id_account'   =>  $_SESSION['id_account'],
+					'keyuniqid_ac' =>  $_SESSION['keyuniqid_ac'],
+					'email_ac'     =>  $_SESSION['email_ac']
+				);
+				setcookie('mc_account',$ssid,$_COOKIE[$hash],'/',$cparams['domain'],($this->settings->getSetting('ssl') ? true : false),true);
+				$this->httpSession->run($array_sess);
+			}
+		}
+		else {
+			$sess = $this->getItems('session',array('id_session'=>$ssid),'one',false);
+			if($sess) {
+				$account = $this->getItems('account_from_key',array('keyuniqid_admin' => $sess['keyuniqid_admin']),'one',false);
+
+				$this->httpSession->regenerate($sess['expires']);
+				$this->session->openSession(array(
+					'id_account'   =>  $_SESSION['id_account'],
+					'keyuniqid_ac' =>  $_SESSION['keyuniqid_ac'],
+					'email_ac'     =>  $_SESSION['email_ac'],
+					'expires' => $sess['expires']
+				));
+				$hash = $account['keyuniqid_ac'].session_id();
+				setcookie($hash,$sess['expires'],0,'/',$cparams['domain'],($this->settings->getSetting('ssl') ? true : false),true);
+
+				$array_sess = array(
+					'id_account'   =>  $_SESSION['id_account'],
+					'keyuniqid_ac' =>  $_SESSION['keyuniqid_ac'],
+					'email_ac'     =>  $_SESSION['email_ac']
+				);
+				$this->httpSession->run($array_sess);
+			}
+		}
+
+		//var_dump($_SESSION);exit();
+
+		if($debug) $this->httpSession->debug();
+	}
 
 	/**
 	 * @access private
 	 * Système de session pour la connexion
 	 */
 	private function authSession() {
-		$agtoken = $this->session->token('token_ac');
+		$agtoken = $this->httpSession->token('token_ac');
 		$this->template->assign('hashpass',$agtoken);
 
 		if ( !empty($this->account) ) {
@@ -421,16 +333,29 @@ class plugins_account_public extends plugins_account_db
 					if (count($authExist['id_account'])) {
 						$account = $this->getItems('accountEmail',array('email_ac' => $this->account['email_ac']),'one',false);
 
-						$this->session->regenerate();
+						$expires = $this->stay_logged ? strtotime("+13 month") : 0;
+						$this->httpSession->regenerate($expires);
+						if($expires) {
+							$hash = $account['keyuniqid_ac'].session_id();
+							$cparams = session_get_cookie_params();
+							setcookie($hash,$expires,0,'/',$cparams['domain'],($this->settings->getSetting('ssl') ? true : false),true);
+						}
 
-						$this->openSession(session_id(), $account['id_account'], $account['keyuniqid_ac']);
+						$this->session->openSession(
+							array(
+								'id_account' => $account['id_account'],
+								'id_session' => session_id(),
+								'keyuniqid_ac' => $account['keyuniqid_ac'],
+								'expires' => ($this->stay_logged ? $expires : null)
+							)
+						);
 
 						$array_sess = array(
 							'id_account'   => $account['id_account'],
 							'email_ac'     => $this->account['email_ac'],
 							'keyuniqid_ac' => $account['keyuniqid_ac']
 						);
-						$this->session->run($array_sess);
+						$this->httpSession->run($array_sess);
 
 						$current = $this->getItems('accountSession',array('keyuniqid_ac' => $_SESSION['keyuniqid_ac']),'one',false);
 
@@ -459,31 +384,31 @@ class plugins_account_public extends plugins_account_db
 	 * Ferme la session et supprime les cookies
 	 * @param bool $redirect
 	 */
-    private function closeCurrentSession($redirect = true){
+	private function closeCurrentSession($redirect = true){
 		if (isset($_SESSION['email_ac']) AND isset($_SESSION['keyuniqid_ac'])){
-			$this->closeSession();
-			$this->session->close('mc_account');
+			$this->session->closeSession();
+			$this->httpSession->close('mc_account');
 			if($redirect) header('location: '. $this->seoURLProfil($this->lang, array('level'=>'login'))); exit;
 		}
-    }
+	}
 
-    /**
-     * Retourne L'url de l'espace membre ou du login suivant la session
-     * @return string
-     */
-    public function hashUrl() {
-        if(isset($this->keyuniqid_session)) {
+	/**
+	 * Retourne L'url de l'espace membre ou du login suivant la session
+	 * @return string
+	 */
+	public function hashUrl() {
+		if(isset($this->keyuniqid_session)) {
 			$current_uri = $this->getItems('accountSession',array('keyuniqid_ac' => $_SESSION['keyuniqid_ac']),'one',false);
 			$urlparams = array(
-            	'hashuri' => filter_rsa::hashEncode('sha1',$current_uri['id_session']),
+				'hashuri' => filter_rsa::hashEncode('sha1',$current_uri['id_session']),
 				'action'  => 'root'
 			);
-        }
-        else {
+		}
+		else {
 			$urlparams = array('level'=>'login');
-        }
-        return $this->seoURLProfil($this->template->currentLanguage(), $urlparams);
-    }
+		}
+		return $this->seoURLProfil($this->template->lang, $urlparams);
+	}
 
 	/**
 	 * Get account data
@@ -494,16 +419,16 @@ class plugins_account_public extends plugins_account_db
 			return $this->getItems('account',$this->id_account_session,'one',false);
 		else
 			return null;
-    }
+	}
 	// --------------------
 
-    // --- Signup
+	// --- Signup
 	/**
 	 * Check if required field are filled
 	 * @return bool
 	 */
-    private function checkRequired() {
-        $data_validate = array(
+	private function checkRequired() {
+		$data_validate = array(
 			'account' => array(
 				'firstname_ac',
 				'lastname_ac',
@@ -511,9 +436,9 @@ class plugins_account_public extends plugins_account_db
 				'passwd'
 			),
 			'cond_gen'
-        );
+		);
 
-        foreach($data_validate as $key => $input){
+		foreach($data_validate as $key => $input){
 			if(is_array($input)) {
 				foreach ($input as $k) {
 					if (empty($_POST[$key][$k])) {
@@ -522,38 +447,38 @@ class plugins_account_public extends plugins_account_db
 				}
 			}
 			elseif (empty($_POST[$input])) {
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
-    }
-    // --------------------
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+	}
+	// --------------------
 
-    // --- Google Recaptcha
+	// --- Google Recaptcha
 	/**
 	 * @return bool
 	 */
-    private function getRecaptcha(){
-        if($this->config['google_recaptcha'] == '1') {
-            if (isset($this->gRecaptchaResponse)) {
-                // If the form submission includes the "g-captcha-response" field
-                // Create an instance of the service using your secret
-                $recaptcha = new \ReCaptcha\ReCaptcha($this->config['recaptchaSecret']);
-                // Make the call to verify the response and also pass the user's IP address
-                $resp = $recaptcha->verify($this->gRecaptchaResponse, $_SERVER['REMOTE_ADDR']);
-                if ($resp->isSuccess()) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-        }
-    }
+	private function getRecaptcha(){
+		if($this->config['google_recaptcha'] == '1') {
+			if (isset($this->gRecaptchaResponse)) {
+				// If the form submission includes the "g-captcha-response" field
+				// Create an instance of the service using your secret
+				$recaptcha = new \ReCaptcha\ReCaptcha($this->config['recaptchaSecret']);
+				// Make the call to verify the response and also pass the user's IP address
+				$resp = $recaptcha->verify($this->gRecaptchaResponse, $_SERVER['REMOTE_ADDR']);
+				if ($resp->isSuccess()) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		}
+	}
 	// --------------------
 
-    // --- Mail
+	// --- Mail
 	/**
 	 * @param $type
 	 * @return string
@@ -588,7 +513,7 @@ class plugins_account_public extends plugins_account_db
 
 		$bodyMail = $this->template->fetch('account/mail/'.$tpl.'.tpl');
 		if ($cssInliner['value']) {
-			$bodyMail = $this->mail->plugin_css_inliner($bodyMail,array(component_core_system::basePath().'skin/'.$this->template->themeSelected().'/mail/css' => 'mail.css'));
+			$bodyMail = $this->mail->plugin_css_inliner($bodyMail,array(component_core_system::basePath().'skin/'.$this->template->themeSelected().'/mail/css' => 'mail.min.css'));
 		}
 
 		if($debug) {
@@ -613,37 +538,21 @@ class plugins_account_public extends plugins_account_db
 			}
 			else {
 				if($this->lang) {
-					$noreply = '';
+					$contact = new plugins_contact_public();
+					$sender = $contact->getSender();
 
-					$allowed_hosts = array_map(function($dom) { return $dom['url_domain']; },$this->modelDomain->getValidDomains());
-					if (!isset($_SERVER['HTTP_HOST']) || !in_array($_SERVER['HTTP_HOST'], $allowed_hosts)) {
-						header($_SERVER['SERVER_PROTOCOL'].' 400 Bad Request');
-						exit;
+					if(!empty($sender) && !empty($email)) {
+						$allowed_hosts = array_map(function($dom) { return $dom['url_domain']; },$this->modelDomain->getValidDomains());
+						if (!isset($_SERVER['HTTP_HOST']) || !in_array($_SERVER['HTTP_HOST'], $allowed_hosts)) {
+							header($_SERVER['SERVER_PROTOCOL'].' 400 Bad Request');
+							exit;
+						}
+                        $noreply = 'noreply@'.str_replace('www.','',$_SERVER['HTTP_HOST']);
+
+						return $this->mail->send_email($email,$tpl,$this->account,'',$noreply,$sender['mail_sender']);
 					}
 					else {
-						$noreply = 'noreply@'.str_replace('www.','',$_SERVER['HTTP_HOST']);
-					}
-
-					if(!empty($noreply)) {
-
-						$message = $this->mail->body_mail(
-							self::setTitleMail($tpl),
-							array($noreply),
-							array($email),
-							self::getBodyMail($tpl),
-							false
-						);
-
-						if($this->mail->batch_send_mail($message)) {
-							return true;
-						}
-						else {
-							$this->message->json_post_response(false,'error');
-							return false;
-						}
-					}
-					else {
-						$this->message->json_post_response(false,'error_config');
+						$this->message->json_post_response(false,'error_plugin');
 						return false;
 					}
 				}
@@ -708,17 +617,14 @@ class plugins_account_public extends plugins_account_db
 				);
 				break;
 		}
-    }
+	}
 	// --------------------
 
-    /**
-     * Execute le plugin dans la partie public
-     */
-    public function run() {
-		$this->securePage(false);
-		/*if(isset($this->module)) {
-			$this->activeMods = $this->module->load_module(false);
-		}*/
+	/**
+	 * Execute le plugin dans la partie public
+	 */
+	public function run() {
+		//$this->securePage(false);
 		$breadplugin = array();
 		$breadplugin[] = array('name' => $this->template->getConfigVars('account'));
 		$this->config = $this->getItems('config',null,'one');
@@ -732,7 +638,7 @@ class plugins_account_public extends plugins_account_db
 					}
 				}
 			}
-			elseif (!$this->compareSessionId()) {
+			elseif (!$this->session->compareSessionId()) {
 				if (!headers_sent()) {
 					header('location: '. $this->seoURLProfil($this->lang, array('level'=>'login')));
 					exit;
@@ -760,6 +666,17 @@ class plugins_account_public extends plugins_account_db
 			}
 			elseif($this->action && $this->action === $hash) {
 				$this->template->assign('breadplugin', $breadplugin);
+
+				$tabs = array();
+				if(!empty($this->mods)) {
+					foreach ($this->mods as $name => $mod){
+						if(method_exists($mod,'getTabLink')) {
+							$tabs[] = $mod->getTabLink($this->template, $hash);
+						}
+					}
+				}
+				$this->template->assign('tabs',$tabs);
+
 				$this->template->display('account/index.tpl');
 			}
 			else {
@@ -834,7 +751,7 @@ class plugins_account_public extends plugins_account_db
 										$status = true;
 										$notify = 'update';
 
-										$this->closeCurrentSession(false);
+										$this->closeCurrentSession();
 									}
 									break;
 								case 'pwd':
@@ -877,7 +794,13 @@ class plugins_account_public extends plugins_account_db
 						$this->template->display('order.tpl');
 						break;*/
 					default:
-						if(!empty($current)) {
+						if(!empty($this->mods) && isset($this->mods[$this->action])) {
+							$mod = $this->mods[$this->action];
+							if(method_exists($mod,'run')) {
+								$mod->run();
+							}
+						}
+						elseif(!empty($current)) {
 							$urlparams = array(
 								'hashuri' => $hash,
 								'action'  => 'root'
@@ -893,8 +816,8 @@ class plugins_account_public extends plugins_account_db
 						}
 				}
 			}
-        }
-        else {
+		}
+		else {
 			if($this->action) {
 				switch ($this->action) {
 					case 'signup':
@@ -942,10 +865,9 @@ class plugins_account_public extends plugins_account_db
 							unset($this->account['repeat_passwd']);
 
 							$this->add(array(
-									'type' => 'account',
-									'data' => $this->account
-								)
-							);
+								'type' => 'account',
+								'data' => $this->account
+							));
 
 							// --- Check the newsletter plugin
 							if(!empty($this->activeMods)) {
@@ -989,7 +911,8 @@ class plugins_account_public extends plugins_account_db
 
 								$this->send_email($this->account['email_ac'],'activate');
 
-								$breadplugin[0] = array('name' => $this->template->getConfigVars('activate'));
+//								$breadplugin[0]['url'] = http_url::getUrl().'/'.$this->template->lang.'/account/';
+								$breadplugin[] = array('name' => $this->template->getConfigVars('activate'));
 								$this->template->assign('breadplugin', $breadplugin);
 								$this->template->display('account/activate.tpl');
 							}
@@ -1022,7 +945,7 @@ class plugins_account_public extends plugins_account_db
 									));
 									$this->send_email($this->account['email_ac'],'rstpwd');
 									$status = true;
-									$notify = 'update';
+									$notify = 'request';
 								}
 							}
 							$this->message->json_post_response($status,$notify);
@@ -1054,6 +977,12 @@ class plugins_account_public extends plugins_account_db
 						break;
 				}
 			}
+			else {
+				if (!headers_sent()) {
+					header('location: '. $this->seoURLProfil($this->lang, array('level'=>'login')));
+					exit;
+				}
+			}
 		}
-    }
+	}
 }

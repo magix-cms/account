@@ -1,0 +1,43 @@
+<mj-section>
+    <mj-column width="100%">
+        <mj-text font-weight="bold" font-size="16px" padding-bottom="0">
+            {#signup_h1_mail#}
+        </mj-text>
+        <mj-divider/>
+        <mj-text mj-class="lightext" font-size="16px">
+            {#signup_thx_mail#|sprintf:$companyData.name}
+        </mj-text>
+    </mj-column>
+</mj-section>
+<mj-section padding="0">
+<mj-column width="100%" padding="0">
+    <mj-divider border-color="#ccc" border-width="1px" padding="0 25px"/>
+</mj-column>
+</mj-section>
+<mj-section>
+<mj-column width="50%">
+    <mj-text mj-class="smalltitle">
+        {#account_information#}
+    </mj-text>
+    <mj-text mj-class="lightext" padding-top="0">
+        {#account_firstname#|ucfirst} : {$data.firstname_ac}</br>
+        {#account_lastname#|ucfirst} : {$data.lastname_ac}</br>
+        {#account_mail#|ucfirst} : {$data.email_ac}
+    </mj-text>
+</mj-column>
+</mj-section>
+<mj-section padding="0">
+<mj-column width="100%" padding="0">
+    <mj-divider border-color="#ccc" border-width="1px" padding="0 25px"/>
+</mj-column>
+</mj-section>
+<mj-section>
+<mj-column width="100%">
+    <mj-text padding-bottom="0" align="center">
+        {#signup_text_mail#}
+    </mj-text>
+    <mj-button href="{geturl}/{getlang}/account/{$data.keyuniqid_ac}/activate/" background-color="{$main_color}" color="white">
+        {#signup_title_mail#}
+    </mj-button>
+</mj-column>
+</mj-section>

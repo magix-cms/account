@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS `mc_account_session` (
   `ip_session` VARCHAR(25) NOT NULL,
   `browser_session` VARCHAR(50) NOT NULL,
   `last_modified_session` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expires` TIMESTAMP DEFAULT NULL,
   PRIMARY KEY (`id_session`),
   KEY (`id_account`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
