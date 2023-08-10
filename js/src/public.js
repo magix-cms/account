@@ -1,54 +1,66 @@
-var account = (function($, window, document, undefined){
-    'use strict';
+class accountMenu {
+    constructor() {
+        this.menu = document.getElementById('user-panel');
+        this.panels = document.querySelectorAll('.panels');
+        this.panelBackBtn = document.querySelectorAll('.panelBack');
+        this.tosigninBtn = document.querySelectorAll('.tosignin');
+        this.topwdBtn = document.querySelectorAll('.topwd');
+    }
 
-    return {
-        login: function (url,iso) {
-            $('#pw_email_ac').rules('add',{
-                remote: {
-                    url: url+'/'+iso+'/account/rstpwd/',
-                    type: 'get',
-                    data: {
-                        v_email: function() {
-                            return $( "#pw_email_ac" ).val();
-                        }
-                    }
-                },
-                messages: {
-                    remote: $.validator.messages.emailNotExist
-                }
+    updatePanelsClasses(type,className) {
+        this.panels.forEach(function(p){
+            if(typeof className === "string") p.classList[type](className);
+            else if(typeof className === "object" && className.length > 0) p.classList[type](...className);
+        });
+    }
+
+    run() {
+        let self = this;
+        self.panelBackBtn.forEach(function(btn){
+            btn.addEventListener('click',function(e){
+                e.preventDefault();
+                self.updatePanelsClasses('remove',['signin-active','pwd-active']);
+                return false;
             });
-        },
-        signup: function (url,iso) {
-            $('#email_ac').rules('add',{
-                remote: {
-                    url: url+'/'+iso+'/account/signup/',
-                    type: 'get',
-                    data: {
-                        v_email: function() {
-                            return $( "#email_ac" ).val();
-                        }
-                    }
-                },
-                messages: {
-                    remote: $.validator.messages.emailExist
-                }
+        });
+        self.tosigninBtn.forEach(function(btn){
+            btn.addEventListener('click',function(e){
+                e.preventDefault();
+                self.updatePanelsClasses('remove','pwd-active');
+                self.updatePanelsClasses('add','signin-active');
+                return false;
             });
-        },
-        config: function (url,iso,hash) {
-            $('#email_ac').rules('add',{
-                remote: {
-                    url: url+'/'+iso+'/account/'+hash+'/config/',
-                    type: 'get',
-                    data: {
-                        v_email: function() {
-                            return $( "#email_ac" ).val();
-                        }
-                    }
-                },
-                messages: {
-                    remote: $.validator.messages.emailExist
-                }
+        });
+        self.topwdBtn.forEach(function(btn){
+            btn.addEventListener('click',function(e){
+                e.preventDefault();
+                self.updatePanelsClasses('remove','signin-active');
+                self.updatePanelsClasses('add','pwd-active');
+                return false;
+            });
+        });
+
+        if (typeof IScroll !== "undefined") {
+            let menu = self.menu.classList.contains('logged') ? '#user-panel' : '.signin-panel';
+            let scrollmenu = new IScroll(menu, {
+                mouseWheel: true,
+                scrollbars: false
+            });
+            let resize_ob = new ResizeObserver(() => scrollmenu.refresh() );
+            let mutation_ob = new MutationObserver(() => scrollmenu.refresh() );
+
+            self.menu.addEventListener('shown.bs.collapse', () => {
+                resize_ob.observe(document.querySelector(menu))
+                mutation_ob.observe(document.querySelector(menu),{ childList:true, subtree:true })
+            });
+            self.menu.addEventListener('hidden.bs.collapse', () => {
+                resize_ob.unobserve(document.querySelector(menu))
+                mutation_ob.disconnect()
             });
         }
-    };
-})(jQuery, window, document);
+    }
+}
+const account =  new accountMenu();
+window.addEventListener('load', function() {
+    account.run();
+});

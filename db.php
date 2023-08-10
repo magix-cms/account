@@ -32,23 +32,23 @@
  # versions in the future. If you wish to customize MAGIX CMS for your
  # needs please refer to http://www.magix-cms.com for more information.
  */
-class plugins_account_db
-{
+class plugins_account_db {
 	/**
-	 * @param $config
-	 * @param bool $params
-	 * @return mixed|null
-	 * @throws Exception
+	 * @param array $config
+	 * @param array $params
+	 * @return array|bool
 	 */
-	public function fetchData($config, $params = false)
-	{
-		if (!is_array($config)) return '$config must be an array';
-
-		$sql = '';
-
+	public function fetchData(array $config, array $params = []) {
 		if ($config['context'] === 'all') {
 			switch ($config['type']) {
 				case 'accounts':
+					$limit = '';
+					if ($config['offset']) {
+						$limit = ' LIMIT 0, ' . $config['offset'];
+						if (isset($config['page']) && $config['page'] > 1) {
+							$limit = ' LIMIT ' . (($config['page'] - 1) * $config['offset']) . ', ' . $config['offset'];
+						}
+					}
 					$cond = '';
 
 					if(isset($config['search'])) {
@@ -60,20 +60,20 @@ class plugins_account_db
 									switch ($key) {
 										case 'id_account':
 										case 'active_ac':
-											$cond .= 'a.'.$key.' = '.$q.' ';
+											$cond .= 'ma.'.$key.' = '.$q.' ';
 											break;
 										case 'iso_lang':
-											$cond .= 'l.id_lang = '.$q.' ';
+											$cond .= 'ml.id_lang = '.$q.' ';
 											break;
 										case 'email_ac':
 										case 'firstname_ac':
 										case 'lastname_ac':
-											$cond .= "a.".$key." LIKE '%".$q."%' ";
+											$cond .= "ma.".$key." LIKE '%".$q."%' ";
 											break;
 										case 'date_register':
 											$dateFormat = new component_format_date();
 											$q = $dateFormat->date_to_db_format($q);
-											$cond .= "a.".$key." LIKE '%".$q."%' ";
+											$cond .= "ma.".$key." LIKE '%".$q."%' ";
 											break;
 									}
 									$nbc++;
@@ -81,87 +81,102 @@ class plugins_account_db
 							}
 						}
 					}
+					if(isset($params['where'])) {
+						unset($params['where']);
+					}
 
-					$sql = 'SELECT
- 								a.id_account,
- 								l.iso_lang,
- 								a.email_ac,
- 								a.firstname_ac,
- 								a.lastname_ac,
- 								a.active_ac,
- 								a.date_create
-							FROM `mc_account` as a
-							JOIN `mc_lang` as l USING(`id_lang`)' . $cond;
+					$select = ['ma.id_account', 'ml.iso_lang', 'ma.email_ac', 'ma.firstname_ac', 'ma.lastname_ac', 'ma.active_ac', 'ma.date_create'];
+
+					if(isset($params['select'])) {
+						foreach ($params['select'] as $extendSelect) {
+							$select = array_merge($select, $extendSelect);
+						}
+						unset($params['select']);
+					}
+
+					$joins = '';
+					if(isset($params['join']) && is_array($params['join'])) {
+						foreach ($params['join'] as $join) {
+							$joins .= ' '.$join['type'].' '.$join['table'].' '.$join['as'].' ON ('.$join['on']['table'].'.'.$join['on']['key'].' = '.$join['as'].'.'.$join['on']['key'].') ';
+						}
+						unset($params['join']);
+					}
+
+					$query = 'SELECT '.implode(',', $select).'
+							FROM `mc_account` ma
+							JOIN `mc_lang` ml USING(`id_lang`)'.$joins.$cond. ' GROUP By id_account ORDER BY id_account DESC'. $limit;
 					break;
+				case 'search_account':
+					$cond = '';
+					$query = "SELECT 
+       							ma.id_account
+							FROM mc_account ma
+							WHERE $cond AND
+							ma.pseudo_ac LIKE :resume_needle
+							ORDER BY ma.pseudo_ac DESC";
+					unset($params['needle']);
+					break;
+				case 'search_ft_account':
+					$cond = '';
+					$query = "SELECT 
+       							ma.id_account
+							FROM mc_account ma
+							WHERE $cond AND
+							AND (
+								ma.pseudo_ac LIKE :name_needle
+							) ORDER BY ma.pseudo_ac DESC";
+					break;
+				default:
+					return false;
 			}
 
-			return $sql ? component_routing_db::layer()->fetchAll($sql, $params) : null;
+			try {
+				return component_routing_db::layer()->fetchAll($query, $params);
+			}
+			catch (Exception $e) {
+				if(!isset($this->logger)) $this->logger = new debug_logger(MP_LOG_DIR);
+				$this->logger->log('statement','db',$e->getMessage(),$this->logger::LOG_MONTH);
+			}
 		}
 		elseif ($config['context'] === 'one') {
 			switch ($config['type']) {
-				case 'config':
-					$sql = 'SELECT * FROM `mc_account_config` ORDER BY id_config DESC LIMIt 0,1';
-					break;
-				case 'auth':
-					$sql = 'SELECT *
+                case 'account':
+                    $query = 'SELECT 
+								a.*,
+       							asos.*
 							FROM `mc_account` as a
-							WHERE `email_ac` = :email_ac
-							AND `passcrypt_ac` = :passwd_ac';
-					break;
-				case 'account':
-					$sql = 'SELECT *
-							FROM `mc_account` as a
-							JOIN `mc_account_address` as aa USING(`id_account`)
 							JOIN `mc_account_social` as asos USING(`id_account`)
 							JOIN `mc_lang` as l USING(`id_lang`)
 							WHERE `id_account` = :id';
+                    break;
+                case 'billing_address':
+                    $query = "SELECT 
+       							*
+							FROM `mc_account_address`
+							WHERE `id_account` = :id AND `type_address` = 'billing'";
+                    break;
+                case 'delivery_address':
+					$query = "SELECT 
+       							*
+							FROM `mc_account_address`
+							WHERE `id_account` = :id AND `type_address` = 'delivery'";
+                    break;
+				case 'config':
+					$query = 'SELECT * FROM `mc_account_config` ORDER BY id_config DESC LIMIt 0,1';
 					break;
 				case 'accountEmail':
-					$sql = 'SELECT *
+					$query = 'SELECT *
 							FROM `mc_account` as a
 							JOIN `mc_account_address` as aa USING(`id_account`)
 							JOIN `mc_account_social` as asos USING(`id_account`)
 							JOIN `mc_lang` as l USING(`id_lang`)
 							WHERE `email_ac` = :email_ac';
 					break;
-				case 'pwdcrypt':
-					$sql = 'SELECT passcrypt_ac
-							FROM `mc_account` as a
-							WHERE `id_account` = :id';
-					break;
-				case 'pwdcryptEmail':
-					$sql = 'SELECT passcrypt_ac
-							FROM `mc_account` as a
-							WHERE `email_ac` = :email_ac';
-					break;
-				case 'searchmail':
-					$sql = 'SELECT email_ac
-							FROM `mc_account` as a
-							WHERE `email_ac` = :email_ac';
-					break;
-				case 'session':
-					$sql = 'SELECT *
-							FROM mc_account_session
-							WHERE id_session = :id_session';
-					break;
-				case 'accountSession':
-					$sql = 'SELECT *
-							FROM mc_account_session
-							WHERE `keyuniqid_ac` = :keyuniqid_ac';
-					break;
-				case 'idFromIso':
-					$sql = 'SELECT `id_lang` FROM `mc_lang` WHERE `iso_lang` = :iso';
-					break;
-				case 'accountFromKey':
-					$sql = 'SELECT *
-							FROM `mc_account` as a
-							JOIN `mc_account_address` as aa USING(`id_account`)
-							JOIN `mc_account_social` as asos USING(`id_account`)
-							JOIN `mc_lang` as l USING(`id_lang`)
-							WHERE `keyuniqid_ac` = :keyuniqid';
-					break;
+                case 'accountFromKey':
+                    $query = 'SELECT id_account, email_ac, active_ac FROM `mc_account` WHERE `keyuniqid_ac` = :keyuniqid';
+                    break;
 				case 'accountHashKey':
-					$sql = 'SELECT *
+					$query = 'SELECT *
 							FROM `mc_account` as a
 							JOIN `mc_account_address` as aa USING(`id_account`)
 							JOIN `mc_account_social` as asos USING(`id_account`)
@@ -169,50 +184,101 @@ class plugins_account_db
 							WHERE `keyuniqid_ac` = :keyuniqid
 							AND `change_pwd` = :token';
 					break;
+                case 'accountSession':
+                    $query = 'SELECT *
+							FROM mc_account_session
+							WHERE `keyuniqid_ac` = :keyuniqid_ac';
+                    break;
+				case 'auth':
+					$query = 'SELECT *
+							FROM `mc_account` as a
+							WHERE `email_ac` = :email_ac
+							AND `passcrypt_ac` = :passwd_ac AND `active_ac` = 1';
+					break;
+				case 'idFromIso':
+					$query = 'SELECT `id_lang` FROM `mc_lang` WHERE `iso_lang` = :iso';
+					break;
+				case 'pwdcryptEmail':
+					$query = 'SELECT passcrypt_ac
+							FROM `mc_account` as a
+							WHERE `email_ac` = :email_ac';
+					break;
+                case 'searchmail':
+                    $query = 'SELECT email_ac FROM `mc_account` WHERE `email_ac` = :email_ac';
+                    break;
+				default:
+					return false;
 			}
 
-			return $sql ? component_routing_db::layer()->fetch($sql, $params) : null;
+			try {
+				return component_routing_db::layer()->fetch($query, $params);
+			}
+			catch (Exception $e) {
+				if(!isset($this->logger)) $this->logger = new debug_logger(MP_LOG_DIR);
+				$this->logger->log('statement','db',$e->getMessage(),$this->logger::LOG_MONTH);
+			}
 		}
+		return false;
 	}
 
 	/**
-	 * @param $config
+	 * @param array $config
 	 * @param array $params
 	 * @return bool|string
 	 */
-	public function insert($config, $params = array())
-	{
-		if (!is_array($config)) return '$config must be an array';
-
-		$sql = '';
-
+	public function insert(array $config, array $params = []) {
 		switch ($config['type']) {
-			case 'account':
-			    $queries = array(
-					array('request' => 'INSERT INTO `mc_account` (`id_lang`, `email_ac`, `passcrypt_ac`, `keyuniqid_ac`, `firstname_ac`, `lastname_ac`, `active_ac`, `date_create`) VALUES (:id_lang, :email_ac, :passcrypt_ac, :keyuniqid_ac, :firstname_ac, :lastname_ac, :active_ac, NOW())', 'params' => $params),
-					array('request' => 'SET @account_id = LAST_INSERT_ID()', 'params' => []),
-					array('request' => 'INSERT INTO `mc_account_address` (`id_account`) VALUE (@account_id)', 'params' => []),
-					array('request' => 'INSERT INTO `mc_account_social` (`id_account`) VALUE (@account_id)', 'params' => [])
-				);
+            case 'account':
+				$datetime = new component_format_date();
+				$params['birthdate_ac'] = empty($params['birthdate_ac']) ? NULL : $datetime->date_to_db_format($params['birthdate_ac']);
+                $queries = [
+                    ['request' => 'INSERT INTO `mc_account` (
+                          `id_lang`, 
+                          `email_ac`, 
+                          `passcrypt_ac`, 
+                          `keyuniqid_ac`, 
+                          `firstname_ac`, 
+                          `lastname_ac`, 
+                          `birthdate_ac`, 
+                          `phone_ac`, 
+                          `company_ac`, 
+                          `vat_ac`, 
+                          `active_ac`, 
+                          `date_create`
+                          ) 
+					VALUES (
+							:id_lang, 
+					        :email_ac, 
+					        :passcrypt_ac, 
+					        :keyuniqid_ac, 
+					        :firstname_ac, 
+					        :lastname_ac, 
+					        :birthdate_ac, 
+					        :phone_ac, 
+					        :company_ac, 
+					        :vat_ac,
+					        :active_ac, 
+					        NOW()
+					        )', 'params' => $params],
+                    ['request' => 'SELECT @account_id := LAST_INSERT_ID() as id_account', 'params' => [], 'fetch' => true],
+                    ['request' => "INSERT INTO `mc_account_address` (`id_account`,`type_address`) VALUE (@account_id,'billing')", 'params' => []],
+                    ['request' => "INSERT INTO `mc_account_address` (`id_account`,`type_address`) VALUE (@account_id,'delivery')", 'params' => []],
+                    ['request' => 'INSERT INTO `mc_account_social` (`id_account`) VALUE (@account_id)', 'params' => []]
+                ];
 
-				try {
-					component_routing_db::layer()->transaction($queries);
-					return true;
-				}
-				catch (Exception $e) {
-					return 'Exception reçue : '.$e->getMessage();
-				}
-				break;
-			case 'session':
-				$sql = 'INSERT INTO `mc_account_session` (`id_session`,`id_account`,`keyuniqid_ac`,`ip_session`,`browser_session`,`expires`)
-						VALUES (:id_session,:id_account,:keyuniqid_ac,:ip_session,:browser_session,:expires)';
-				break;
+                try {
+                    $results = component_routing_db::layer()->transaction($queries);
+                    return $results[1];
+                }
+                catch (Exception $e) {
+                    return 'Exception reçue : '.$e->getMessage();
+                }
+			default:
+				return false;
 		}
 
-		if($sql === '') return 'Unknown request asked';
-
 		try {
-			component_routing_db::layer()->insert($sql,$params);
+			component_routing_db::layer()->insert($query,$params);
 			return true;
 		}
 		catch (Exception $e) {
@@ -221,110 +287,134 @@ class plugins_account_db
 	}
 
 	/**
-	 * @param $config
+	 * @param array $config
 	 * @param array $params
 	 * @return bool|string
 	 */
-	public function update($config, $params = array())
-	{
-		if (!is_array($config)) return '$config must be an array';
-
-		$sql = '';
-
+	public function update(array $config, array $params = []) {
 		switch ($config['type']) {
-			case 'accountActive':
-				$sql = 'UPDATE `mc_account` SET `active_ac` = :active_ac WHERE `id_account` IN ('.$params['id'].')';
-
-				try {
-					component_routing_db::layer()->update($sql,array('active_ac' => $params['active_ac']));
-					return true;
-				}
-				catch (Exception $e) {
-					return 'Exception reçue : '.$e->getMessage();
-				}
-				break;
 			case 'account':
-				$sql = 'UPDATE `mc_account`
+				$datetime = new component_format_date();
+				$params['pseudo_ac'] = $params['pseudo_ac']?: NULL;
+				$params['birthdate_ac'] = empty($params['birthdate_ac']) ? NULL : $datetime->date_to_db_format($params['birthdate_ac']);
+				$query = 'UPDATE `mc_account`
 						SET 
+							`pseudo_ac` = :pseudo_ac,
 							`lastname_ac` = :lastname_ac,
 							`firstname_ac` = :firstname_ac,
+							`birthdate_ac` = :birthdate_ac,
 							`phone_ac` = :phone_ac,
 							`company_ac` = :company_ac,
-							`vat_ac` = :vat_ac,
+							`vat_ac` = :vat_ac
 						WHERE `id_account` = :id';
 				break;
-			case 'socials':
-				$sql = 'UPDATE `mc_account_social`
+			case 'sameAddress':
+				$query = 'UPDATE `mc_account`
+						SET `same_address` = :same_address
+						WHERE `id_account` = :id';
+				break;
+            case 'accountActive':
+                $query = 'UPDATE `mc_account` SET `active_ac` = :active_ac WHERE `id_account` IN ('.$params['id'].')';
+
+                try {
+                    component_routing_db::layer()->update($query,array('active_ac' => $params['active_ac']));
+                    return true;
+                }
+                catch (Exception $e) {
+                    return 'Exception reçue : '.$e->getMessage();
+                }
+			case 'accountAdminConfig':
+				$query = 'UPDATE `mc_account`
 						SET 
-							`website` = :website,
-							`facebook` = :facebook,
-							`instagram` = :instagram,
-							`pinterest` = :pinterest,
-							`twitter` = :twitter,
-							`google` = :google,
-							`linkedin` = :linkedin,
-							`viadeo` = :viadeo,
-							`github` = :github,
-							`soundcloud` = :soundcloud
-						WHERE `id_account` = :id';
+							id_lang = :id_lang,
+							referral_ac = :referral_ac,
+							active_ac = :active_ac,
+							email_ac = :email_ac
+						WHERE id_account = :id';
 				break;
-			case 'accountConfig':
-				$sql = 'UPDATE `mc_account`
+            case 'accountConfig':
+                $query = 'UPDATE `mc_account`
 						SET 
 							`id_lang` = :id_lang,
 							`active_ac` = :active_ac,
 							`email_ac` = :email_ac
 						WHERE `id_account` = :id';
-				break;
-			case 'pwd':
-				$sql = 'UPDATE `mc_account`
-						SET 
-							`passcrypt_ac` = :passcrypt_ac
-						WHERE `id_account` = :id';
-				break;
-			case 'pwdTicket':
-				$sql = 'UPDATE `mc_account`
-						SET `change_pwd` = :token
-						WHERE `id_account` = :id';
-				break;
-			case 'newPwd':
-				$sql = 'UPDATE `mc_account`
-						SET `change_pwd` = NULL,
-							`passcrypt_ac` = :newpwd
-						WHERE `id_account` = :id';
-				break;
+                break;
+            case 'activate':
+                $query = 'UPDATE `mc_account` SET `active_ac` = 1 WHERE `id_account` = :id';
+                break;
 			case 'address':
-				$sql = 'UPDATE `mc_account_address`
+				$query = 'UPDATE `mc_account_address`
 						SET 
 							`street_address` = :street_address,
 							`postcode_address` = :postcode_address,
 							`city_address` = :city_address,
 							`country_address` = :country_address
+						WHERE `id_account` = :id AND `type_address` = :type_address';
+				break;
+			case 'alert':
+				$query = 'UPDATE `mc_account`
+						SET `weekly_alert` = :weekly_alert,
+							`monthly_alert` = :monthly_alert,
+							`overbid_alert` = :overbid_alert,
+							`endofsale_alert` = :endofsale_alert
 						WHERE `id_account` = :id';
 				break;
-			case 'activate':
-				$sql = 'UPDATE `mc_account` SET `active_ac` = 1 WHERE `id_account` = :id';
+			case 'socials':
+				$query = 'UPDATE `mc_account_social`
+						SET 
+							`website` = :website,
+							`facebook` = :facebook,
+							`twitter` = :twitter,
+							`instagram` = :instagram,
+							`tiktok` = :tiktok,
+							`youtube` = :youtube,
+							`pinterest` = :pinterest,
+							`tumblr` = :tumblr,
+							`linkedin` = :linkedin,
+							`viadeo` = :viadeo,
+							`github` = :github,
+							`soundcloud` = :soundcloud
+						WHERE `id_account` = :id_account';
 				break;
 			case 'config':
-				$sql = 'UPDATE `mc_account_config`
+				$query = 'UPDATE `mc_account_config`
 						SET 
+							`pseudo` = :pseudo,
+							`birthdate` = :birthdate,
 							`links` = :links,
-							`cartpay` = :cartpay,
-							`google_recaptcha` = :google_recaptcha,
-							`recaptchaApiKey` = :recaptchaApiKey,
-							`recaptchaSecret` = :recaptchaSecret
+							`picture` = :picture,
+							`public` = :public
 						WHERE id_config = :id';
 				break;
-			case 'newSession':
-				$sql = 'INSERT INTO mc_account_session (id_session,id_account,ip_session,browser_session,keyuniqid_ac)
-							VALUE (:id_session,:id_account,:ip_session,:browser_session,:keyuniqid_ac)';
+			case 'img':
+				$query = 'UPDATE mc_account
+                		SET img_ac = :img_ac
+						WHERE id_account = :id_account';
 				break;
+			case 'newPwd':
+				$query = 'UPDATE `mc_account`
+						SET `change_pwd` = NULL,
+							`passcrypt_ac` = :newpwd
+						WHERE `id_account` = :id';
+				break;
+			case 'pwd':
+				$query = 'UPDATE `mc_account`
+						SET 
+							`passcrypt_ac` = :passcrypt_ac
+						WHERE `id_account` = :id';
+				break;
+			case 'pwdTicket':
+				$query = 'UPDATE `mc_account`
+						SET `change_pwd` = :token
+						WHERE `id_account` = :id';
+				break;
+			default:
+				return false;
 		}
 
-		if($sql === '') return 'Unknown request asked';
-
 		try {
-			component_routing_db::layer()->update($sql,$params);
+			component_routing_db::layer()->update($query,$params);
 			return true;
 		}
 		catch (Exception $e) {
@@ -333,39 +423,23 @@ class plugins_account_db
 	}
 
 	/**
-	 * @param $config
+	 * @param array $config
 	 * @param array $params
 	 * @return bool|string
 	 */
-	public function delete($config, $params = array())
-	{
-		if (!is_array($config)) return '$config must be an array';
-		$sql = '';
-
+	public function delete(array $config, array $params = []) {
 		switch ($config['type']) {
 			case 'account':
-				$sql = 'DELETE FROM `mc_account` 
+				$query = 'DELETE FROM `mc_account` 
 						WHERE `id_account` IN ('.$params['id'].')';
-				$params = array();
+				$params = [];
 				break;
-			case 'session':
-				$sql = 'DELETE FROM `mc_account_session`
-						WHERE `id_session` = :id_session';
-				break;
-			case 'lastSessions':
-				$sql = 'DELETE FROM `mc_account_session`
-						WHERE TO_DAYS(DATE_FORMAT(NOW(), "%Y%m%d")) - TO_DAYS(DATE_FORMAT(last_modified_session, "%Y%m%d")) > :limit AND id_account = :id_account';
-				break;
-			case 'currentSession':
-				$sql = 'DELETE FROM `mc_account_session`
-						WHERE `id_account` = :id_account';
-				break;
+			default:
+				return false;
 		}
 
-		if($sql === '') return 'Unknown request asked';
-
 		try {
-			component_routing_db::layer()->delete($sql,$params);
+			component_routing_db::layer()->delete($query,$params);
 			return true;
 		}
 		catch (Exception $e) {

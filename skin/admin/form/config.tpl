@@ -2,12 +2,48 @@
     <fieldset>
         <div class="form-group">
             <div class="switch">
+                <input type="checkbox" id="pseudo" name="acConfig[pseudo]" class="switch-native-control"{if $config.pseudo} checked{/if} />
+                <div class="switch-bg">
+                    <div class="switch-knob"></div>
+                </div>
+            </div>
+            <label for="pseudo">{#config_pseudo#}&nbsp;?</label>
+        </div>
+        <div class="form-group">
+            <div class="switch">
+                <input type="checkbox" id="birthdate" name="acConfig[birthdate]" class="switch-native-control"{if $config.birthdate} checked{/if} />
+                <div class="switch-bg">
+                    <div class="switch-knob"></div>
+                </div>
+            </div>
+            <label for="birthdate">{#config_birthdate#}&nbsp;?</label>
+        </div>
+        <div class="form-group">
+            <div class="switch">
                 <input type="checkbox" id="links" name="acConfig[links]" class="switch-native-control"{if $config.links} checked{/if} />
                 <div class="switch-bg">
                     <div class="switch-knob"></div>
                 </div>
             </div>
-            <label for="links">{#links#}&nbsp;?</label>
+            <label for="links">{#config_links#}&nbsp;?</label>
+        </div>
+        <div class="form-group">
+            <div class="switch">
+                <input type="checkbox" id="picture" name="acConfig[picture]" class="switch-native-control"{if $config.picture} checked{/if} />
+                <div class="switch-bg">
+                    <div class="switch-knob"></div>
+                </div>
+            </div>
+            <label for="picture">{#config_picture#}&nbsp;?</label>
+        </div>
+        <div class="form-group">
+            <div class="switch">
+                <input type="checkbox" id="public" name="acConfig[public]" class="switch-native-control"{if $config.public} checked{/if} />
+                <div class="switch-bg">
+                    <div class="switch-knob"></div>
+                </div>
+            </div>
+            <label for="public">{#config_public#}&nbsp;?</label>
         </div>
         {*<div class="form-group">
             <div class="switch">
@@ -18,7 +54,7 @@
             </div>
             <label for="address">{#address#}&nbsp;?</label>
         </div>*}
-        <div class="form-group">
+        {*<div class="form-group">
             <div class="switch">
                 <input type="checkbox" id="cartpay" name="acConfig[cartpay]" class="switch-native-control"{if $config.cartpay} checked{/if} />
                 <div class="switch-bg">
@@ -49,7 +85,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div>*}
     </fieldset>
     <div id="submit">
         <button class="btn btn-main-theme" type="submit" name="action" value="edit">{#save#|ucfirst}</button>

@@ -1,0 +1,71 @@
+// Compiler options
+@import (reference) "../mixins";
+
+// --- Account Page - public
+//--------------------------------
+
+#account-public {
+    article header {
+        display: grid;
+        align-items: center;
+        grid-template-columns: auto 2fr;
+        grid-column-gap: 1rem;
+        grid-template-areas:
+            'picture pseudo'
+            'picture rating';
+        font-size: 1rem;
+        margin-bottom: 1rem;
+
+        .ratings {
+            grid-area: rating;
+            display: flex;
+            align-items: center;
+            column-gap: .5rem;
+        }
+
+        h1 {
+            font-size: 1rem;
+            margin: 0;
+            padding: 0;
+            grid-area: pseudo;
+        }
+
+        .picture {
+            grid-area: picture;
+            .ico {
+                font-size: 3rem;
+            }
+            img {
+                border: 1px solid var(--brd-default);
+                border-radius: 100%;
+                background-color: var(--body-bg);
+                max-width: 3rem;
+                max-height: 3rem;
+                z-index: 1;
+            }
+        }
+    }
+    .nav-tabs {
+        border-top: 1px solid var(--brd-default);
+        border-bottom: 1px solid var(--brd-default);
+        padding: .5rem 0;
+        --link-color: var(--text-grey);
+        margin-bottom: 1rem;
+
+        li {
+            margin-bottom: 0;
+            border-right: 1px solid var(--brd-default);
+            &:last-child {
+                border-right: none;
+            }
+        }
+    }
+
+    @media (max-width: @screen-xs-max) {
+        .tab-content {
+            .h2 {
+                .sr-only
+            }
+        }
+    }
+}

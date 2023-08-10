@@ -11,7 +11,7 @@
             </p>
         </div>
     {/if}
-    <h1 class="h2">{#account_plugin#}</h1>
+    <h1 class="h2"><a href="{$smarty.server.SCRIPT_NAME}?controller={$smarty.get.controller}" title="Afficher la liste des profils">{#account_plugin#}</a></h1>
 {/block}
 {block name='article:content'}
     {if {employee_access type="view" class_name=$cClass} eq 1}
@@ -33,7 +33,7 @@
                     </div>
                     <div class="tab-content">
                         <div role="tabpanel" class="tab-pane active" id="general">
-                            {include file="section/form/table-form-2.tpl" idcolumn='id_account' data=$accounts activation=true sortable=false controller="account" debug=false}
+                            {include file="section/form/table-form-3.tpl" idcolumn='id_account' data=$accounts activation=true sortable=false controller="account" change_offset=true}
                         </div>
                         <div role="tabpanel" class="tab-pane" id="config">
                             {include file="form/config.tpl"}
@@ -50,10 +50,23 @@
 {/block}
 
 {block name="foot" append}
-    {capture name="scriptForm"}/{baseadmin}/min/?f=plugins/account/js/admin.min.js{/capture}
+    {capture name="scriptForm"}{strip}
+        /{baseadmin}/min/?f=
+        libjs/vendor/jquery-ui-1.12.min.js,
+        {baseadmin}/template/js/table-form.min.js,
+        plugins/account/js/admin.min.js
+    {/strip}{/capture}
     {script src=$smarty.capture.scriptForm type="javascript"}
     <script type="text/javascript">
         $(function() {
+            var controller = "{$smarty.server.SCRIPT_NAME}?controller={$smarty.get.controller}";
+            var offset = "{if isset($offset)}{$offset}{else}null{/if}";
+            if (typeof tableForm == "undefined")
+            {
+                console.log("tableForm is not defined");
+            }else{
+                tableForm.run(controller,offset);
+            }
             if (typeof account == "undefined") {
                 console.log("account is not defined");
             } else

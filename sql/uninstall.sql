@@ -1,0 +1,12 @@
+TRUNCATE TABLE `mc_account_address`;
+DROP TABLE `mc_account_address`;
+TRUNCATE TABLE `mc_account_social`;
+DROP TABLE `mc_account_social`;
+TRUNCATE TABLE `mc_account_session`;
+DROP TABLE `mc_account_session`;
+TRUNCATE TABLE `mc_account_config`;
+DROP TABLE `mc_account_config`;
+TRUNCATE TABLE `mc_account_purchase`;
+DROP TABLE `mc_account_purchase`;
+TRUNCATE TABLE `mc_account`;
+DROP TABLE `mc_account`;

@@ -1,7 +1,12 @@
 {extends file="layout.tpl"}
-{block name="title"}{seo_rewrite conf=['level'=>'root','type'=>'title','default'=>#seo_activate_title#]}{/block}
-{block name="description"}{seo_rewrite conf=['level'=>'root','type'=>'description','default'=>#seo_activate_desc#]}{/block}
-{block name='body:id'}activated{/block}
+{block name="title"}{#seo_activate_title#|sprintf:$companyData.name}{/block}
+{block name="description"}{#seo_activate_desc#|sprintf:$companyData.name}{/block}
+{block name='body:id'}account-activated{/block}
+{*block name="styleSheet"}
+    {$css_files = [
+    "/skin/{$theme}/css/account-activate{if $setting.mode !== 'dev'}.min{/if}.css"
+    ]}
+{/block*}
 
 {block name="main"}
 <main id="content">
@@ -11,15 +16,16 @@
     <article id="article" class="container">
         {block name='article:content'}
             <div class="row row-center">
-                <div class="col-ph-12 col-sm-6">
-                    <div class="content-box">
-                        <h1 class="h3 text-center">{#activate_h1#|ucfirst}</h1>
-                        <p class="alert alert-success"><span class="fa fa-check"></span> {#activate_msg#}</p>
-                        <p class="lead text-center">{#activate_connect#|sprintf:$companyData.name}</p>
-                        <p>
-                            <a class="btn btn-box btn-block btn-main-theme" href="{geturl}/{getlang}/account/login/">{#login_title#}</a>
-                        </p>
-                    </div>
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <h1 class="h3 text-center">{#activate_h1#}</h1>
+                    <p class="alert alert-success"><span class="fa fa-check"></span> {#activate_msg#}</p>
+                    <p class="lead text-center">{#activate_connect#|sprintf:$companyData.name}</p>
+                    <p>
+{*                        <button class="btn btn-block btn-sd" data-toggle="collapse" data-target="#user-panel">{#login_title#}</button>*}
+                        <button type="button" class="btn btn-block btn-main user-menu-btn panelBack" data-toggle="collapse" data-target="#user-panel">
+                            <span class="button-label">{#login_title#}</span>
+                        </button>
+                    </p>
                 </div>
             </div>
         {/block}

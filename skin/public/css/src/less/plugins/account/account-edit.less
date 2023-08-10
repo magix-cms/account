@@ -1,0 +1,78 @@
+// Compiler options
+@import (reference) "../mixins";
+
+// --- Admin Page
+//----------------------
+
+#account-edit {
+	.preview {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		max-width: 8rem;
+		margin: 0 auto;
+		position: relative;
+
+		.ico {
+			font-size: 8rem;
+		}
+		img {
+			border: 1px solid var(--brd-default);
+			border-radius: 100%;
+			background-color: var(--body-bg);
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%,-50%);
+			z-index: 1;
+		}
+	}
+	.panel {
+		border: none;
+		box-shadow: none;
+
+		.panel-body {
+			border: none;
+		}
+
+		.panel-heading {
+			.panel-title {
+				position: relative;
+				margin-bottom: 0;
+				padding: .5rem 0;
+				.text-overflow;
+
+				&, &.open.collapsed {
+					.show-more { display: flex; }
+					.show-less { display: none; }
+				}
+
+				&.open,
+				&:not(.collapsed){
+					.show-more { display: none; }
+					.show-less { display: flex; }
+				}
+			}
+
+			.icon {
+				display: flex;
+				line-height: 1;
+				position: absolute;
+				right: 0;
+				top: 50%;
+				padding: .5rem;
+				margin: 0;
+				border: none;
+				font-size: 1em;
+				height: 100%;
+				align-items: center;
+				transform: translateY(-50%);
+				z-index: 1;
+
+				.show-more { display: flex; }
+				.show-less { display: none; }
+			}
+		}
+	}
+}

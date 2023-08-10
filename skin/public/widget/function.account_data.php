@@ -37,30 +37,17 @@
  * @package Smarty
  * @subpackage plugins
  */
-/**
- * Smarty {widget_profil_session} function plugin
- *
- * Type: function
- * Name: widget_profil_session
- * Purpose:
- * USAGE: {account_data}
- * Output:   
- * @link http://www.magix-dev.be
- * @author Gerits Aurelien
- * @version 1.5
- * @param array
- * @param Smarty
- * @return string
- */
 function smarty_function_account_data($params, $smarty){
 	$modelTemplate = $smarty->tpl_vars['modelTemplate']->value instanceof frontend_model_template ? $smarty->tpl_vars['modelTemplate']->value : new frontend_model_template();
-	$member = new plugins_account_public($modelTemplate);
-	$modelTemplate->addConfigFile(
-		array(component_core_system::basePath().'/plugins/account/i18n/'),
-		array('public_local_'),
-		false
-	);
+	//$member = new plugins_account_public($modelTemplate);
+	$session = new plugins_account_session();
+	$modelTemplate->addConfigFile([component_core_system::basePath().'/plugins/account/i18n/'], ['public_local_']);
 	$modelTemplate->configLoad();
-	$smarty->assign('hashurl',$member->hashUrl());
-	$smarty->assign('account',$member->accountData());
+	if($session->isLogged()) {
+		$smarty->assign('tabs',$session->getTabs());
+	}
+    $smarty->assign('hashpass',$session->hashpass());
+	$smarty->assign('hashurl',$session->hashUrl());
+	$smarty->assign('account_config',$session->getAccountConfig());
+	$smarty->assign('account',$session->accountData());
 }

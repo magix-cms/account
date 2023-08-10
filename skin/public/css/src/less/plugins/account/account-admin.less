@@ -1,0 +1,105 @@
+// Compiler options
+@import (reference) "../mixins";
+
+// --- Admin Page
+//----------------------
+
+#account-admin {
+	.profile {
+		display: grid;
+		grid-template-areas:
+				'img details'
+				'info details';
+		//grid-template-columns: 2fr 1fr;
+		margin-bottom: 2rem;
+
+		.picture {
+			grid-area: img;
+			display: flex;
+			justify-content: center;
+
+			.user-img {
+				position: relative;
+				> .ico {
+					font-size: 6rem;
+				}
+				> a {
+					position: absolute;
+					bottom: 0;
+					right: 0;
+					background-color: var(--body-bg);
+					border-radius: 100%;
+					padding: .25rem;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					transform: rotateX(50%);
+				}
+				img {
+					border: 1px solid var(--brd-default);
+					border-radius: 100%;
+					background-color: var(--body-bg);
+					max-width: 6rem;
+				}
+			}
+		}
+		.account-info {
+			grid-area: info;
+			text-align: center;
+			margin-bottom: 0;
+		}
+		.account-details {
+			grid-area: details;
+			display: grid;
+			justify-content: right;
+			justify-items: right;
+			text-align: right;
+			gap: .5rem;
+
+			> div:not(.rating) {
+				display: grid;
+				justify-content: end;
+				line-height: 1.2;
+				text-align: right;
+
+				> span {
+					color: var(--grey);
+					font-size: .75rem;
+
+					+ span {
+						color: var(--main-color);
+						font-size: 1.375rem;
+					}
+				}
+			}
+		}
+	}
+	article nav > ul {
+		.list-unstyled;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1rem;
+
+		li {
+			--items-per-row: 3;
+			--cell-width: calc((100% - (var(--items-per-row) - 1) * 1rem)/var(--items-per-row));
+			flex: 1 0 var(--cell-width);
+			max-width: var(--cell-width);
+		}
+		.btn {
+			display: grid;
+			justify-content: center;
+			align-content: center;
+			aspect-ratio: 1/1;
+		}
+		.tile-name {
+			margin-top: 1rem;
+			font-size: 1rem;
+			line-height: 1.2;
+		}
+		.ico {
+			font-size: 1.5rem;
+		}
+	}
+}

@@ -1,0 +1,81 @@
+// Compiler options
+@import (reference) "../mixins";
+
+.pro {
+	display: flex;
+	align-items: flex-start;
+
+	.pp-rating {
+		text-align: center;
+	}
+	.pp {
+		position: relative;
+		margin-bottom: 1rem;
+
+		img {
+			border-radius: 100%;
+		}
+		.active {
+			position: absolute;
+			bottom: 0;
+			right: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			height: 2rem;
+			width: 2rem;
+			z-index: 1;
+			background: var(--main-color);
+			border-radius: 100%;
+		}
+		.ico {
+			color: var(--white);
+		}
+	}
+	.rating {
+		position: relative;
+		display: inline-block;
+		font-size: .9rem;
+
+		.empty-star,
+		.filled-star {
+			display: flex;
+			justify-content: center;
+		}
+
+		.empty-star {
+			color: var(--smooth-white);
+		}
+
+		.filled-star {
+			color: var(--main-color);
+			position: absolute;
+			top: 0;
+			left: 0;
+			height: 100%;
+			white-space: nowrap;
+			overflow: hidden;
+			box-sizing: content-box;
+
+			&[data-rate^="0"] { width: 0; }
+			&[data-rate^="1"] { width: 20%; }
+			&[data-rate^="2"] { width: 40%; }
+			&[data-rate^="3"] { width: 60%; }
+			&[data-rate^="4"] { width: 80%; }
+			&[data-rate^="5"] { width: 100%; }
+
+			&[data-rate$="1"] { padding-right: 2%; }
+			&[data-rate$="2"] { padding-right: 4%; }
+			&[data-rate$="3"] { padding-right: 6%; }
+			&[data-rate$="4"] { padding-right: 8%; }
+			&[data-rate$="5"] { padding-right: 10%; }
+			&[data-rate$="6"] { padding-right: 12%; }
+			&[data-rate$="7"] { padding-right: 14%; }
+			&[data-rate$="8"] { padding-right: 16%; }
+			&[data-rate$="9"] { padding-right: 18%; }
+		}
+	}
+	.details {
+		padding-left: 2rem;
+	}
+}

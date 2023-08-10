@@ -14,6 +14,11 @@
                 <label for="email_ac">{#email#|ucfirst}&nbsp;*:</label>
                 <input id="email_ac" type="email" name="account[email_ac]" value="{$account.email}" placeholder="{#ph_email#}" class="form-control required" required/>
             </div>
+            {if $config.pseudo}
+            <div class="form-group">
+                <label for="pseudo_ac">{#pseudo#|ucfirst} :</label>
+                <input id="pseudo_ac" type="text" name="account[pseudo_ac]" value="{$account.pseudo}" placeholder="{#ph_pseudo#}" class="form-control" />
+            </div>{/if}
             <div class="form-group">
                 <label for="firstname_ac">{#firstname#|ucfirst} :</label>
                 <input id="firstname_ac" type="text" name="account[firstname_ac]" value="{$account.firstname}" placeholder="{#ph_firstname#}" class="form-control" />
@@ -45,7 +50,7 @@
         </fieldset>
         <fieldset>
             <legend>Enregistrer</legend>
-            <button class="btn btn-main-theme" type="submit" name="action" value="edit">{#save#|ucfirst}</button>
+            <button class="btn btn-main-theme" type="submit">{#save#|ucfirst}</button>
         </fieldset>
     </form>
 </div>

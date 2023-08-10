@@ -1,4 +1,5 @@
 <div class="row">
+    {*<pre>{$account|print_r}</pre>*}
     <form id="config_form" method="post" action="{$smarty.server.SCRIPT_NAME}?controller={$smarty.get.controller}&amp;tabs=accountConfig&amp;action=edit" class="validate_form edit_form col-ph-12 col-sm-6 col-lg-3">
         <fieldset>
             <legend>{#account_info#|ucfirst}</legend>
@@ -14,9 +15,13 @@
                 <label for="email_ac">{#email#|ucfirst}&nbsp;*:</label>
                 <input id="email_ac" type="email" name="account[email_ac]" value="{$account.email_ac}" placeholder="{#ph_email#}" class="form-control required" required/>
             </div>
+            {*<div class="form-group">
+                <label for="contributor_code_ac">{#contributor_code_ac#|ucfirst}&nbsp;:</label>
+                <input id="contributor_code_ac" type="text" name="account[contributor_code_ac]" value="{$account.contributor_code_ac}" placeholder="{#ph_contributor_code_ac#}" class="form-control" maxlength="8"/>
+            </div>*}
             <div class="form-group">
                 <div class="switch">
-                    <input type="checkbox" id="active" name="account[active_ac]" class="switch-native-control"{if $account.active_ac || !$account} checked{/if} />
+                    <input type="checkbox" id="active" name="account[active_ac]" class="switch-native-control"{if $account.active_ac eq 1 || !$account} checked{/if} />
                     <div class="switch-bg">
                         <div class="switch-knob"></div>
                     </div>

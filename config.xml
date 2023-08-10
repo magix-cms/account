@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!-- /*
- * MAGIX CMS Copyright (c) 2018 Gerits Aurelien,
+ * MAGIX CMS Copyright (c) 2008 - 2022 Gerits Aurelien, http://www.magix-cms.com
  * Dual licensed under the MIT AND GPL Version 3 licenses.
- *
- * Date: January 31 13:34 2017
  */-->
 <config>
 	<authorized>
@@ -22,13 +20,19 @@
 		</authors>
 		<release>
 			<date_create>05/09/2016</date_create>
-			<date_update>10/07/2020</date_update>
-			<version>1.3.0</version>
+			<date_update>22/06/2022</date_update>
+			<version>2.0.0</version>
 			<phase>Stable</phase>
 		</release>
 		<bind>
 			<plugin>
+				<name>recaptcha</name>
+			</plugin>
+			<plugin>
 				<name>cartpay</name>
+			</plugin>
+			<plugin>
+				<name>thematic</name>
 			</plugin>
 		</bind>
 		<support>
